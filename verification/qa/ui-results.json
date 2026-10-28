@@ -1,0 +1,109 @@
+{
+  "at": "2026-10-27T06:47:32.868Z",
+  "pass": 17,
+  "fail": 0,
+  "results": [
+    {
+      "id": "D1",
+      "desc": "dashboard loads with correct title",
+      "status": "PASS",
+      "ms": 14
+    },
+    {
+      "id": "D2",
+      "desc": "all core h2 sections present",
+      "status": "PASS",
+      "ms": 67
+    },
+    {
+      "id": "D3",
+      "desc": "architecture diagram + frameworks table + testing numbers, no detailed TC cards",
+      "status": "PASS",
+      "ms": 41
+    },
+    {
+      "id": "D4",
+      "desc": "decisions table lists D1..D8",
+      "status": "PASS",
+      "ms": 4
+    },
+    {
+      "id": "D5",
+      "desc": "no 'SIGNED OFF' badge used for AI-only verification",
+      "status": "PASS",
+      "ms": 4
+    },
+    {
+      "id": "D6",
+      "desc": "no console/page errors on load",
+      "status": "PASS",
+      "ms": 0
+    },
+    {
+      "id": "D7",
+      "desc": "dark mode: body background is dark, text is light",
+      "status": "PASS",
+      "ms": 1358
+    },
+    {
+      "id": "D8",
+      "desc": "light mode renders and screenshot captured",
+      "status": "PASS",
+      "ms": 1314
+    },
+    {
+      "id": "D9",
+      "desc": "mobile viewport: no horizontal overflow",
+      "status": "PASS",
+      "ms": 1162
+    },
+    {
+      "id": "D10",
+      "desc": "technical-detail sections are collapsed by default",
+      "status": "PASS",
+      "ms": 868
+    },
+    {
+      "id": "C1",
+      "desc": "console loads with correct title",
+      "status": "PASS",
+      "ms": 565
+    },
+    {
+      "id": "C2",
+      "desc": "empty state shown when there are no tasks",
+      "status": "PASS",
+      "ms": 623
+    },
+    {
+      "id": "C3",
+      "desc": "a submitted request surfaces a CAPTCHA card with input + Submit",
+      "status": "PASS",
+      "ms": 4531
+    },
+    {
+      "id": "C3b",
+      "desc": "CAPTCHA input keeps focus and typed text across the 5s auto-refresh",
+      "status": "PASS",
+      "ms": 5685
+    },
+    {
+      "id": "C4",
+      "desc": "typing an answer + Submit clears the task from the list",
+      "status": "PASS",
+      "ms": 144
+    },
+    {
+      "id": "C5",
+      "desc": "console links to the project dashboard",
+      "status": "PASS",
+      "ms": 3
+    },
+    {
+      "id": "C6",
+      "desc": "no console/page errors during the console flow",
+      "status": "PASS",
+      "ms": 0
+    }
+  ]
+}

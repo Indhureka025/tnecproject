@@ -1,0 +1,65 @@
+{
+  "_comment": "Captured from a live local run on 2026-09-10. POST /v1/ec-requests then GET /v1/ec-requests/{id}. Provider: mock (survey number containing '4' returns one mortgage entry).",
+  "requestId": "8e6b01c5-38ce-43b3-afa8-f02d4bca4d9c",
+  "reference": "ERP-DEAL-1",
+  "status": "completed",
+  "certified": false,
+  "source": "mock",
+  "submittedAt": "2026-09-10T11:55:53.495Z",
+  "completedAt": "2026-09-10T11:55:53.528Z",
+  "estimate": { "type": "minutes", "value": 5 },
+  "result": {
+    "schemaVersion": "1.0",
+    "search": {
+      "type": "EC_WISE",
+      "property": {
+        "zone": "Chennai",
+        "district": "North Chennai",
+        "sroCode": "CHN-NO-TVL",
+        "village": "Thiruvottiyur",
+        "surveyNumber": "123/4",
+        "subdivisionNumber": "1"
+      },
+      "period": { "from": "2004-01-01", "to": "2024-12-31" },
+      "performedAt": "2026-09-10T11:55:53.528Z"
+    },
+    "outcome": "ENTRIES_FOUND",
+    "encumbrancePresent": true,
+    "entryCount": 1,
+    "entries": [
+      {
+        "seq": 1,
+        "instrumentType": "MORTGAGE",
+        "rawInstrumentType": "Simple Mortgage",
+        "documentNumber": "CHN-NO-TVL/2231/2019",
+        "sroName": "CHN-NO-TVL",
+        "executionDate": "2019-07-04",
+        "registrationDate": "2019-07-09",
+        "presentationDate": "2019-07-04",
+        "considerationAmount": { "value": 3500000, "currency": "INR" },
+        "marketValue": { "value": 4200000, "currency": "INR" },
+        "extentSurveyed": "1200 sq.ft",
+        "parties": [
+          { "role": "EXECUTANT", "name": "A. Kumar" },
+          { "role": "CLAIMANT", "name": "XYZ Bank Ltd" }
+        ],
+        "propertyDescription": "Survey 123/4 subdiv 1",
+        "remarks": null,
+        "pageRef": "Vol 45 / Pg 210"
+      }
+    ],
+    "documents": [],
+    "caveats": [],
+    "provenance": {
+      "source": "mock",
+      "sourceReference": "MOCK-8e6b01c5",
+      "certified": false,
+      "retrievedAt": "2026-09-10T11:55:53.528Z",
+      "operatorId": null,
+      "rawArtifactRefs": []
+    },
+    "disclaimer": "An EC lists registered instruments for the period and keys searched. It is not proof of ownership or clear title; absence of entries does not prove the property is unencumbered or unoccupied."
+  },
+  "documents": [],
+  "failure": null
+}

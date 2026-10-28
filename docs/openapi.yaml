@@ -1,0 +1,208 @@
+openapi: 3.1.0
+info:
+  title: EC Service — internal API
+  version: 0.1.0
+  description: >
+    Async EC retrieval for the client ERP. Submit a request, receive the result by
+    webhook (polling fallback). Source (aggregator vs browser automation) is hidden
+    behind this contract. See docs/internal-api-contract.md and
+    docs/canonical-ec-result.md.
+servers:
+  - url: https://ec-svc.staging.example.internal/v1
+    description: staging
+security:
+  - bearerAuth: []
+
+paths:
+  /ec-requests:
+    post:
+      operationId: createEcRequest
+      summary: Submit an EC retrieval request
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EcRequest' }
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestStatus' }
+        '200':
+          description: Existing request returned (idempotency hit)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestStatus' }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429':
+          description: Per-tenant rate limit exceeded
+          headers:
+            Retry-After: { schema: { type: integer }, description: seconds until the window resets }
+          content:
+            application/json:
+              schema: { type: object, properties: { error: { type: string } } }
+
+  /ec-requests/{requestId}:
+    get:
+      operationId: getEcRequest
+      summary: Poll status / result (fallback for missed webhooks)
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Current state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestStatus' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /documents/{key}:
+    get:
+      operationId: getDocument
+      summary: Download an EC document via a signed, time-limited URL
+      description: >
+        The URL (with `exp` and `token` query params) comes from `documents[].url`
+        in a completed request. No bearer token needed; the signature authorises it.
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema: { type: string }
+        - in: query
+          name: exp
+          required: true
+          schema: { type: string }
+        - in: query
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: the document bytes (text/html or application/pdf) }
+        '403': { description: bad or expired token }
+        '404': { description: not found }
+
+  /metrics:
+    get:
+      operationId: getMetrics
+      summary: Prometheus-style metrics (text)
+      security: []
+      responses:
+        '200': { description: metrics in text exposition format }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error: { type: string }
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field: { type: string }
+                    message: { type: string }
+
+  schemas:
+    EcRequest:
+      type: object
+      required: [searchType, certified, property, period, callbackUrl]
+      properties:
+        searchType: { type: string, enum: [EC_WISE, DOCUMENT_WISE, PLOT_FLAT_WARD_WISE] }
+        certified: { type: boolean }
+        property:
+          type: object
+          properties:
+            zone: { type: string }
+            district: { type: string }
+            sroCode: { type: string }
+            village: { type: [string, 'null'] }
+            surveyNumber: { type: [string, 'null'] }
+            subdivisionNumber: { type: [string, 'null'] }
+            documentNumber: { type: [string, 'null'] }
+            registrationYear: { type: [integer, 'null'] }
+        period:
+          type: object
+          required: [from, to]
+          properties:
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+        callbackUrl: { type: string, format: uri }
+        reference: { type: string }
+        priority: { type: string, enum: [normal, high], default: normal }
+
+    RequestStatus:
+      type: object
+      required: [requestId, status]
+      properties:
+        requestId: { type: string }
+        reference: { type: string }
+        status:
+          type: string
+          enum: [queued, in_progress, needs_human, awaiting_signature, completed, partial, failed]
+        certified: { type: boolean }
+        source: { type: string }
+        submittedAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+        estimate:
+          type: object
+          properties:
+            type: { type: string, enum: [minutes, days] }
+            value: { type: integer }
+        result:
+          description: Canonical EC result — see docs/schemas/ec-result.schema.json
+          type: [object, 'null']
+        documents:
+          type: array
+          items:
+            type: object
+            properties:
+              kind: { type: string, enum: [ec_summary, ec_pdf, raw_html, screenshot] }
+              url: { type: string, format: uri }
+              expiresAt: { type: string, format: date-time }
+              sha256: { type: string }
+        failure:
+          type: [object, 'null']
+          properties:
+            code:
+              type: string
+              enum: [validation, unresolvable, portal_unavailable, provider_error,
+                     no_records_unconfirmed, payment_required, not_digitised,
+                     captcha_unrecoverable, timeout]
+            message: { type: string }
+            retryable: { type: boolean }
+            operatorNote: { type: [string, 'null'] }
+
+    WebhookEvent:
+      type: object
+      required: [eventId, event, requestId, occurredAt, data]
+      properties:
+        eventId: { type: string }
+        event:
+          type: string
+          enum: [ec.received, ec.needs_human, ec.awaiting_signature, ec.completed, ec.partial, ec.failed]
+        requestId: { type: string }
+        reference: { type: string }
+        occurredAt: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/RequestStatus' }

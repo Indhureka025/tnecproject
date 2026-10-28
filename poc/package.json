@@ -1,0 +1,18 @@
+{
+  "name": "tn-ec-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Feasibility POC: automate a TNREGINET Encumbrance Certificate (EC-wise) search with human-in-the-loop CAPTCHA/OTP.",
+  "scripts": {
+    "ec:search": "node ec-search.mjs",
+    "postinstall": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.47.0"
+  },
+  "devDependencies": {
+    "gifenc": "^1.0.3",
+    "pngjs": "^7.0.0"
+  }
+}

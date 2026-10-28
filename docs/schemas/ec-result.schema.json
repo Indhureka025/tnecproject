@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ec-svc.internal/schemas/ec-result-1.0.json",
+  "title": "Canonical EC result",
+  "type": "object",
+  "required": ["schemaVersion", "search", "outcome", "entries", "caveats", "provenance", "disclaimer"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "search": {
+      "type": "object",
+      "required": ["type", "property", "period", "performedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["EC_WISE", "DOCUMENT_WISE", "PLOT_FLAT_WARD_WISE"] },
+        "property": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "zone": { "type": "string" },
+            "district": { "type": "string" },
+            "sroCode": { "type": "string" },
+            "sroName": { "type": "string" },
+            "village": { "type": ["string", "null"] },
+            "surveyNumber": { "type": ["string", "null"] },
+            "subdivisionNumber": { "type": ["string", "null"] },
+            "documentNumber": { "type": ["string", "null"] },
+            "registrationYear": { "type": ["integer", "null"] }
+          }
+        },
+        "period": {
+          "type": "object",
+          "required": ["from", "to"],
+          "additionalProperties": false,
+          "properties": {
+            "from": { "type": "string", "format": "date" },
+            "to": { "type": "string", "format": "date" }
+          }
+        },
+        "performedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "outcome": { "enum": ["ENTRIES_FOUND", "NIL_CONFIRMED", "NIL_UNCONFIRMED", "PERIOD_GAP"] },
+    "encumbrancePresent": { "type": ["boolean", "null"] },
+    "entryCount": { "type": "integer", "minimum": 0 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["seq", "instrumentType", "rawInstrumentType", "parties"],
+        "additionalProperties": false,
+        "properties": {
+          "seq": { "type": "integer", "minimum": 1 },
+          "instrumentType": {
+            "enum": ["SALE", "MORTGAGE", "GIFT", "RELEASE", "PARTITION", "SETTLEMENT", "LEASE",
+                     "AGREEMENT", "POWER_OF_ATTORNEY", "ATTACHMENT", "COURT_ORDER", "CORRECTION", "OTHER"]
+          },
+          "rawInstrumentType": { "type": "string" },
+          "documentNumber": { "type": ["string", "null"] },
+          "sroName": { "type": ["string", "null"] },
+          "executionDate": { "type": ["string", "null"], "format": "date" },
+          "registrationDate": { "type": ["string", "null"], "format": "date" },
+          "presentationDate": { "type": ["string", "null"], "format": "date" },
+          "considerationAmount": { "$ref": "#/$defs/money" },
+          "marketValue": { "$ref": "#/$defs/money" },
+          "extentSurveyed": { "type": ["string", "null"] },
+          "parties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["role", "name"],
+              "additionalProperties": false,
+              "properties": {
+                "role": { "enum": ["EXECUTANT", "CLAIMANT", "OTHER"] },
+                "rawRole": { "type": ["string", "null"] },
+                "name": { "type": "string" }
+              }
+            }
+          },
+          "propertyDescription": { "type": ["string", "null"] },
+          "remarks": { "type": ["string", "null"] },
+          "pageRef": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "enum": ["ec_pdf", "raw_html", "screenshot"] },
+          "sha256": { "type": "string" },
+          "pages": { "type": ["integer", "null"] },
+          "sourceUrl": { "type": "string" },
+          "signed": { "type": "boolean" }
+        }
+      }
+    },
+    "caveats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": ["ONLINE_DATA_FROM_1975", "PARTIAL_PERIOD_DIGITISED", "OCR_LOW_CONFIDENCE",
+                     "TRANSLITERATION_AMBIGUITY", "VILLAGE_NAME_FUZZY_MATCH",
+                     "MULTIPLE_SUBDIVISIONS_PRESENT", "NIL_NOT_HUMAN_VERIFIED",
+                     "CERTIFIED_PENDING_SIGNATURE", "CERTIFIED_COPY_SIGNED"]
+          },
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source", "certified", "retrievedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string", "pattern": "^(aggregator:[a-z0-9_-]+|automation)$" },
+        "sourceReference": { "type": ["string", "null"] },
+        "certified": { "type": "boolean" },
+        "retrievedAt": { "type": "string", "format": "date-time" },
+        "operatorId": { "type": ["string", "null"] },
+        "rawArtifactRefs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "disclaimer": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "money": {
+      "type": ["object", "null"],
+      "required": ["value", "currency"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "number", "minimum": 0 },
+        "currency": { "const": "INR" }
+      }
+    }
+  }
+}

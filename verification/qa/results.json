@@ -1,0 +1,232 @@
+{
+  "at": "2026-10-27T06:50:42.072Z",
+  "total": 31,
+  "pass": 31,
+  "fail": 0,
+  "info": 1,
+  "results": [
+    {
+      "id": "TC1",
+      "category": "functional",
+      "desc": "EC_WISE survey 123/4 -> completed, ENTRIES_FOUND, mortgage entry, disclaimer",
+      "status": "PASS",
+      "ms": 49
+    },
+    {
+      "id": "TC2",
+      "category": "functional",
+      "desc": "automation provider opens a CAPTCHA task, operator answers, job continues",
+      "status": "PASS",
+      "ms": 37
+    },
+    {
+      "id": "TC2b",
+      "category": "functional",
+      "desc": "answered HITL task disappears from the open list",
+      "status": "PASS",
+      "ms": 2
+    },
+    {
+      "id": "TC3",
+      "category": "functional",
+      "desc": "unknown SRO -> failed / unresolvable with helpful message",
+      "status": "PASS",
+      "ms": 7
+    },
+    {
+      "id": "TC4",
+      "category": "functional",
+      "desc": "no records + not verified -> partial / NIL_UNCONFIRMED, encumbrancePresent null",
+      "status": "PASS",
+      "ms": 7
+    },
+    {
+      "id": "TC5",
+      "category": "functional",
+      "desc": "identical informational request within window served from cache",
+      "status": "PASS",
+      "ms": 14
+    },
+    {
+      "id": "TC5b",
+      "category": "functional",
+      "desc": "certified EC: payment -> awaiting_signature -> signed",
+      "status": "PASS",
+      "ms": 814
+    },
+    {
+      "id": "RL1",
+      "category": "robustness",
+      "desc": "per-tenant rate limit returns 429 with Retry-After",
+      "status": "PASS",
+      "ms": 1142
+    },
+    {
+      "id": "N1",
+      "category": "negative",
+      "desc": "no auth header -> 401",
+      "status": "PASS",
+      "ms": 3
+    },
+    {
+      "id": "N2",
+      "category": "negative",
+      "desc": "wrong bearer token -> 401",
+      "status": "PASS",
+      "ms": 1
+    },
+    {
+      "id": "N3",
+      "category": "negative",
+      "desc": "missing Idempotency-Key -> 400",
+      "status": "PASS",
+      "ms": 2
+    },
+    {
+      "id": "N4",
+      "category": "negative",
+      "desc": "malformed JSON -> 400, not 500",
+      "status": "PASS",
+      "ms": 6
+    },
+    {
+      "id": "N5",
+      "category": "negative",
+      "desc": "missing required field (period) -> 400",
+      "status": "PASS",
+      "ms": 3
+    },
+    {
+      "id": "N6",
+      "category": "negative",
+      "desc": "period.from after period.to -> 400",
+      "status": "PASS",
+      "ms": 6
+    },
+    {
+      "id": "N7",
+      "category": "negative",
+      "desc": "DOCUMENT_WISE without documentNumber -> 400",
+      "status": "PASS",
+      "ms": 4
+    },
+    {
+      "id": "N8",
+      "category": "negative",
+      "desc": "invalid date format -> 400",
+      "status": "PASS",
+      "ms": 3
+    },
+    {
+      "id": "N9",
+      "category": "negative",
+      "desc": "unknown searchType enum -> 400",
+      "status": "PASS",
+      "ms": 2
+    },
+    {
+      "id": "N10",
+      "category": "negative",
+      "desc": "empty body -> 400",
+      "status": "PASS",
+      "ms": 2
+    },
+    {
+      "id": "N11",
+      "category": "negative",
+      "desc": "GET unknown requestId -> 404",
+      "status": "PASS",
+      "ms": 1
+    },
+    {
+      "id": "N12",
+      "category": "negative",
+      "desc": "same Idempotency-Key + different body -> 409",
+      "status": "PASS",
+      "ms": 7
+    },
+    {
+      "id": "N13",
+      "category": "negative",
+      "desc": "same Idempotency-Key + same body -> 200 replay, same id",
+      "status": "PASS",
+      "ms": 10
+    },
+    {
+      "id": "S1",
+      "category": "security",
+      "desc": "injection-ish string in surveyNumber is handled, no 500",
+      "status": "PASS",
+      "ms": 7
+    },
+    {
+      "id": "S2",
+      "category": "security",
+      "desc": "oversized field (20KB) does not crash the service",
+      "status": "PASS",
+      "ms": 5
+    },
+    {
+      "id": "S3",
+      "category": "security",
+      "desc": "reference length cap enforced (>120 chars -> 400)",
+      "status": "PASS",
+      "ms": 4
+    },
+    {
+      "id": "S4",
+      "category": "security",
+      "desc": "FINDING CHECK: GET request by id has no per-tenant ownership check",
+      "status": "PASS",
+      "ms": 3
+    },
+    {
+      "id": "B1",
+      "category": "boundary",
+      "desc": "period.from == period.to is allowed",
+      "status": "PASS",
+      "ms": 2
+    },
+    {
+      "id": "B2",
+      "category": "boundary",
+      "desc": "pre-1975 period -> PERIOD_GAP, encumbrancePresent null",
+      "status": "PASS",
+      "ms": 4
+    },
+    {
+      "id": "B4",
+      "category": "boundary",
+      "desc": "survey 999 triggers a nil_review HITL task (auto-answered), webhook needs_human fired",
+      "status": "PASS",
+      "ms": 373
+    },
+    {
+      "id": "B5",
+      "category": "boundary",
+      "desc": "concurrent duplicate submits (same key) create only one request",
+      "status": "PASS",
+      "ms": 4
+    },
+    {
+      "id": "W1",
+      "category": "webhook",
+      "desc": "ec.received + ec.completed delivered with a VALID signature",
+      "status": "PASS",
+      "ms": 410
+    },
+    {
+      "id": "P1-metrics",
+      "category": "performance",
+      "desc": "p50=3ms p95=6ms (mock provider, in-memory)",
+      "status": "INFO"
+    },
+    {
+      "id": "P1",
+      "category": "performance",
+      "desc": "20 sequential requests all complete; report p50/p95",
+      "status": "PASS",
+      "ms": 69
+    }
+  ]
+}

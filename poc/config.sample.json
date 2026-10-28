@@ -1,0 +1,37 @@
+{
+  "_comment": "Copy to config.json and fill in. Use YOUR OWN test/sample property details. Never commit config.json.",
+
+  "portal": {
+    "baseUrl": "https://tnreginet.gov.in/portal/",
+    "_note": "The EC search view is opened from the homepage link; it is not a directly navigable URL."
+  },
+
+  "account": {
+    "_note": "Full EC view/download requires a logged-in Citizen account tied to an Indian mobile/email. Leave blank to run in 'anonymous, stop before login' mode.",
+    "username": "",
+    "password": ""
+  },
+
+  "search": {
+    
+    "type": "EC_WISE",
+    "_typeOptions": ["EC_WISE", "DOCUMENT_WISE", "PLOT_FLAT_WISE"],
+    "zone": "CHENNAI",
+    "district": "CENTRAL CHENNAI",
+    "sro": "THIRUVOTTIYUR",
+    "village": "THIRUVOTTIYUR",
+    "surveyNumber": "123",
+    "subdivisionNumber": "4",
+    "ecStartDate": "01/01/2015",
+    "ecEndDate": "31/12/2024"
+  },
+
+  "run": {
+    "headless": false,
+    "slowMoMs": 150,
+    "artifactsDir": "./artifacts",
+    "stepTimeoutMs": 45000,
+    "stopBeforeLogin": true,
+    "downloadPdf": false
+  }
+}

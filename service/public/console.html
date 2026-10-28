@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EC Operator Console</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#f3f5f9; --card:#ffffff; --ink:#14181f; --muted:#667085; --line:#e2e6ee;
+    --accent:#2557d6; --accent-ink:#ffffff; --accent-soft:#e8eefc;
+    --ok:#12805c; --ok-soft:#e3f6ee; --warn:#b26a00; --warn-soft:#fff3dc; --bad:#c42b1c; --bad-soft:#fde8e6;
+    --shadow:0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0f1115; --card:#181b21; --ink:#eceef3; --muted:#9aa3b2; --line:#2a2f39;
+      --accent:#7aa2ff; --accent-ink:#0b1020; --accent-soft:#1c2740;
+      --ok:#4cc79b; --ok-soft:#12332a; --warn:#f0b24a; --warn-soft:#3a2c10; --bad:#ff7b6e; --bad-soft:#3d1a17;
+      --shadow:none;
+    }
+  }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  a { color:var(--accent); }
+  button { font:inherit; cursor:pointer; }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+
+  header.top { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    padding:12px 20px; background:var(--card); border-bottom:1px solid var(--line); }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .logo { width:34px; height:34px; border-radius:9px; background:var(--accent); color:var(--accent-ink);
+    display:grid; place-items:center; font-weight:700; font-size:13px; letter-spacing:.02em; }
+  .brand h1 { margin:0; font-size:16px; line-height:1.2; }
+  .brand small { color:var(--muted); font-size:12px; }
+  .spacer { flex:1; }
+  .live { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 3px var(--ok-soft); }
+  .dot.off { background:var(--bad); box-shadow:0 0 0 3px var(--bad-soft); }
+  .op { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .op input { width:130px; padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; font-size:13px; }
+  .toggle { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); user-select:none; cursor:pointer; }
+
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; max-width:1100px; margin:18px auto 0; padding:0 20px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; box-shadow:var(--shadow); }
+  .stat b { display:block; font-size:24px; line-height:1.15; font-variant-numeric:tabular-nums; }
+  .stat span { color:var(--muted); font-size:12px; }
+  .stat.hot b { color:var(--warn); }
+
+  main { max-width:1100px; margin:16px auto 40px; padding:0 20px; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; align-items:start; }
+  @media (max-width:860px) { main { grid-template-columns:1fr; } .stats { grid-template-columns:repeat(2,1fr); } }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); }
+  .focus { padding:20px; }
+  .focus-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .kind { font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:3px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); }
+  .kind.captcha { background:var(--warn-soft); color:var(--warn); }
+  .meta { color:var(--muted); font-size:12px; }
+  .meta code { background:var(--bg); padding:1px 6px; border-radius:6px; }
+
+  .captcha-box { background:#fff; border:2px dashed var(--line); border-radius:12px; padding:14px; display:grid; place-items:center; min-height:120px; }
+  .captcha-box img { width:100%; max-width:440px; height:auto; image-rendering:auto; display:block; }
+  .captcha-box .noimg { color:#667085; font-size:13px; }
+
+  .timer { margin:12px 0 4px; }
+  .bar { height:8px; border-radius:99px; background:var(--bg); overflow:hidden; border:1px solid var(--line); }
+  .bar i { display:block; height:100%; width:0; background:var(--ok); transition:width .9s linear, background .3s; }
+  .bar i.warn { background:var(--warn); } .bar i.bad { background:var(--bad); }
+  .timer-text { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:4px; font-variant-numeric:tabular-nums; }
+  .timer-text .warn { color:var(--warn); font-weight:600; } .timer-text .bad { color:var(--bad); font-weight:600; }
+
+  label.field { display:block; margin:14px 0 6px; font-size:13px; font-weight:600; }
+  .big-input { width:100%; font:600 28px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; letter-spacing:.18em;
+    padding:12px 14px; border:2px solid var(--line); border-radius:12px; background:var(--bg); color:var(--ink); text-align:center; }
+  @media (max-width:520px) { .big-input { font-size:22px; letter-spacing:.1em; } }
+  .big-input::placeholder { font-weight:400; letter-spacing:.04em; font-size:16px; }
+  .big-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  textarea.note, input.small { width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
+  textarea.note { min-height:64px; resize:vertical; }
+
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; align-items:center; }
+  .btn { padding:11px 18px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-weight:600; }
+  .btn.primary { background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+  .btn.ok { background:var(--ok); color:#fff; border-color:transparent; }
+  .btn.danger { background:var(--bad-soft); color:var(--bad); border-color:transparent; }
+  .btn.ghost { background:transparent; color:var(--muted); }
+  .hint { color:var(--muted); font-size:12px; margin-left:auto; }
+  kbd { background:var(--bg); border:1px solid var(--line); border-bottom-width:2px; border-radius:6px; padding:0 6px; font-size:11px; }
+  .msg { min-height:20px; margin-top:10px; font-size:13px; }
+  .msg.err { color:var(--bad); } .msg.okk { color:var(--ok); }
+  details.ctx { margin-top:16px; font-size:12px; color:var(--muted); }
+  details.ctx pre { background:var(--bg); padding:10px; border-radius:8px; overflow:auto; max-height:160px; }
+  p.explain { margin:0 0 6px; color:var(--muted); font-size:14px; }
+
+  .empty { padding:44px 20px; text-align:center; color:var(--muted); }
+  .empty .big { font-size:44px; line-height:1; margin-bottom:8px; }
+  .empty h2 { margin:0 0 6px; color:var(--ink); font-size:18px; }
+
+  .queue h2 { margin:0; padding:14px 16px 10px; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .q-item { display:flex; align-items:center; gap:10px; padding:10px 16px; border-top:1px solid var(--line); cursor:pointer; width:100%; background:none; border-left:0; border-right:0; border-bottom:0; color:inherit; text-align:left; }
+  .q-item:hover { background:var(--bg); }
+  .q-item.active { background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
+  .q-item .k { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; width:84px; flex:none; color:var(--muted); }
+  .q-item .id { font-size:12px; color:var(--muted); font-family:ui-monospace,Menlo,Consolas,monospace; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .q-item .age { font-size:12px; font-variant-numeric:tabular-nums; color:var(--muted); }
+  .q-item .age.warn { color:var(--warn); font-weight:700; }
+  .q-empty { padding:16px; color:var(--muted); font-size:13px; border-top:1px solid var(--line); }
+  .footer-note { max-width:1100px; margin:0 auto 30px; padding:0 20px; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="logo">EC</div>
+    <div><h1>Operator Console</h1><small>CAPTCHA · OTP · review tasks from the retrieval workers</small></div>
+  </div>
+  <div class="spacer"></div>
+  <label class="toggle"><input type="checkbox" id="sound" /> Sound alert</label>
+  <div class="op"><label for="operator">Operator</label><input id="operator" maxlength="30" placeholder="your name" /></div>
+  <div class="live"><span class="dot" id="dot"></span><span id="liveText">connecting…</span></div>
+</header>
+
+<section class="stats" aria-label="Summary">
+  <div class="stat" id="st-open"><b>–</b><span>Waiting for a human</span></div>
+  <div class="stat"><b id="st-done">–</b><span>Answered today</span></div>
+  <div class="stat"><b id="st-avg">–</b><span>Avg response time</span></div>
+  <div class="stat"><b id="st-oldest">–</b><span>Oldest waiting</span></div>
+</section>
+
+<main>
+  <section class="card" id="focus" aria-live="polite"></section>
+  <aside class="card queue">
+    <h2>Queue <span id="qcount"></span></h2>
+    <div id="queue"></div>
+  </aside>
+</main>
+<p class="footer-note">Type the CAPTCHA exactly as shown (case matters). It expires quickly on the portal — answer within about 30 seconds.
+  &nbsp;·&nbsp; <a href="/dashboard">project dashboard →</a></p>
+
+<script>
+(() => {
+  const POLL_MS = 3000, WARN_S = 30, EXPIRE_S = 45;
+  const $ = (id) => document.getElementById(id);
+  const focusEl = $('focus'), queueEl = $('queue');
+
+  // ---------- tiny safe DOM helper (no innerHTML with server data) ----------
+  function h(tag, attrs = {}, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v === false || v == null) continue;
+      if (k === 'class') el.className = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    for (const kid of kids.flat()) if (kid != null) el.append(kid.nodeType ? kid : document.createTextNode(kid));
+    return el;
+  }
+
+  // ---------- state ----------
+  let tasks = [];            // open tasks, oldest first
+  let selectedId = null;
+  let renderedFocusKey = null, renderedQueueKey = null;
+  let knownIds = null;       // for "new task" alerts
+  let answeredToday = { count: 0, avgSec: null };
+  let lastAnsweredFetch = 0;
+  const drafts = new Map();  // taskId -> { value, note, reference }
+
+  // ---------- settings ----------
+  const opInput = $('operator'), soundBox = $('sound');
+  opInput.value = localStorage.getItem('ecOperator') || '';
+  soundBox.checked = localStorage.getItem('ecSound') !== '0';
+  opInput.addEventListener('input', () => localStorage.setItem('ecOperator', opInput.value));
+  soundBox.addEventListener('change', () => localStorage.setItem('ecSound', soundBox.checked ? '1' : '0'));
+  const operatorId = () => (opInput.value || 'console-user').replace(/[^A-Za-z0-9 ._-]/g, '').trim() || 'console-user';
+
+  let audioCtx;
+  function beep() {
+    if (!soundBox.checked) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = 880; g.gain.value = 0.06;
+      o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.18);
+    } catch { /* audio is optional */ }
+  }
+
+  // ---------- helpers ----------
+  const ageS = (t) => Math.max(0, Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 1000));
+  const fmt = (s) => (s == null ? '–' : s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + (s % 60) + 's');
+  const kindLabel = (k) => ({ captcha: 'CAPTCHA', otp: 'OTP', nil_review: 'Nil review', ocr_review: 'OCR review', payment: 'Payment' }[k] || k);
+  const shortId = (id) => (id || '').slice(0, 8);
+  const safeImg = (src) => typeof src === 'string' && (src.startsWith('data:image/') || src.startsWith('/')) ? src : null;
+
+  function setLive(ok) {
+    $('dot').classList.toggle('off', !ok);
+    $('liveText').textContent = ok ? 'live · updates every ' + POLL_MS / 1000 + 's' : 'service not reachable';
+  }
+
+  // ---------- data ----------
+  async function loadOpen() {
+    try {
+      const res = await fetch('/ops/tasks?status=open', { cache: 'no-store' });
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      // CAPTCHA / OTP expire fast, so they go first; reviews can wait. Oldest first within each group.
+      const urgent = (t) => (t.kind === 'captcha' || t.kind === 'otp' ? 0 : 1);
+      tasks = (data.tasks || []).slice().sort((a, b) => urgent(a) - urgent(b) || new Date(a.createdAt) - new Date(b.createdAt));
+      setLive(true);
+    } catch { setLive(false); return false; }
+
+    const ids = new Set(tasks.map((t) => t.id));
+    if (knownIds) {
+      const fresh = tasks.filter((t) => !knownIds.has(t.id));
+      if (fresh.length) { beep(); }
+    }
+    knownIds = ids;
+    if (!tasks.find((t) => t.id === selectedId)) selectedId = tasks[0]?.id ?? null;
+    return true;
+  }
+
+  async function loadAnswered() {
+    if (Date.now() - lastAnsweredFetch < 15000) return;
+    lastAnsweredFetch = Date.now();
+    try {
+      const res = await fetch('/ops/tasks?status=answered', { cache: 'no-store' });
+      const list = (await res.json()).tasks || [];
+      const today = new Date().toDateString();
+      const mine = list.filter((t) => t.answeredAt && new Date(t.answeredAt).toDateString() === today);
+      const secs = mine.map((t) => (new Date(t.answeredAt) - new Date(t.createdAt)) / 1000).filter((n) => n >= 0);
+      answeredToday = { count: mine.length, avgSec: secs.length ? Math.round(secs.reduce((a, b) => a + b, 0) / secs.length) : null };
+    } catch { /* keep previous */ }
+  }
+
+  async function sendAnswer(task, body, ui) {
+    ui.buttons.forEach((b) => (b.disabled = true));
+    ui.msg.className = 'msg'; ui.msg.textContent = 'Sending…';
+    try {
+      const res = await fetch(`/ops/tasks/${encodeURIComponent(task.id)}/answer`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-operator-id': operatorId() },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('server said ' + res.status);
+      drafts.delete(task.id);
+      lastAnsweredFetch = 0;
+      await refresh(true);
+    } catch (e) {
+      ui.buttons.forEach((b) => (b.disabled = false));
+      ui.msg.className = 'msg err'; ui.msg.textContent = 'Could not send: ' + e.message + '. Try again.';
+    }
+  }
+
+  // ---------- rendering ----------
+  function renderStats() {
+    const open = tasks.length;
+    $('st-open').querySelector('b').textContent = open;
+    $('st-open').classList.toggle('hot', open > 0);
+    $('st-done').textContent = answeredToday.count;
+    $('st-avg').textContent = fmt(answeredToday.avgSec);
+    $('st-oldest').textContent = open ? fmt(Math.max(...tasks.map(ageS))) : '–';
+    document.title = open ? `(${open}) ${kindLabel(tasks[0].kind)} waiting · EC Console` : 'EC Operator Console';
+  }
+
+  function renderQueue() {
+    const key = tasks.map((t) => t.id).join(',') + '|' + selectedId;
+    if (key === renderedQueueKey) return;
+    renderedQueueKey = key;
+    $('qcount').textContent = tasks.length ? `(${tasks.length})` : '';
+    queueEl.replaceChildren();
+    if (!tasks.length) { queueEl.append(h('div', { class: 'q-empty' }, 'Nothing waiting.')); return; }
+    for (const t of tasks) {
+      queueEl.append(h('button', {
+        class: 'q-item' + (t.id === selectedId ? ' active' : ''), type: 'button', 'data-id': t.id,
+        onclick: () => { selectedId = t.id; renderedFocusKey = null; renderAll(); },
+      }, h('span', { class: 'k' }, kindLabel(t.kind)), h('span', { class: 'id' }, shortId(t.requestId)), h('span', { class: 'age', 'data-created': t.createdAt }, fmt(ageS(t)))));
+    }
+  }
+
+  function renderFocus() {
+    const task = tasks.find((t) => t.id === selectedId);
+    const key = task ? task.id : 'none';
+    if (key === renderedFocusKey) return;        // never rebuild while typing
+    renderedFocusKey = key;
+    focusEl.replaceChildren();
+
+    if (!task) {
+      focusEl.append(h('div', { class: 'empty' },
+        h('div', { class: 'big' }, '✓'), h('h2', {}, 'All clear'),
+        h('div', {}, 'When a worker hits a CAPTCHA, OTP or an unclear result it appears here automatically.')));
+      return;
+    }
+
+    const draft = drafts.get(task.id) || {};
+    const { imageBase64, _mockAnswer, ...restCtx } = task.context || {};
+    const msg = h('div', { class: 'msg', role: 'status' });
+    const ui = { buttons: [], msg };
+    const addBtn = (label, cls, onclick, type = 'button') => { const b = h('button', { class: 'btn ' + cls, type, onclick }, label); ui.buttons.push(b); return b; };
+
+    const wrap = h('div', { class: 'focus' },
+      h('div', { class: 'focus-head' },
+        h('span', { class: 'kind ' + task.kind }, kindLabel(task.kind)),
+        h('span', { class: 'meta' }, 'request ', h('code', {}, shortId(task.requestId)), ' · opened ', new Date(task.createdAt).toLocaleTimeString())));
+
+    if (task.kind === 'captcha' || task.kind === 'otp') {
+      if (task.kind === 'captcha') {
+        const src = safeImg(imageBase64);
+        wrap.append(h('div', { class: 'captcha-box' }, src ? h('img', { src, alt: 'CAPTCHA to solve' }) : h('div', { class: 'noimg' }, 'No image attached to this task.')));
+        wrap.append(h('div', { class: 'timer' },
+          h('div', { class: 'bar' }, h('i', { id: 'tbar' })),
+          h('div', { class: 'timer-text' }, h('span', { id: 'ttext' }, '0s since screenshot'), h('span', {}, 'expires ≈ ' + WARN_S + 's'))));
+      } else {
+        wrap.append(h('p', { class: 'explain' }, 'An OTP was sent to the registered mobile / mailbox. Enter it below.'));
+      }
+      const input = h('input', {
+        class: 'big-input', id: 'answer', type: 'text', inputmode: 'text', autocomplete: 'off', autocapitalize: 'off',
+        spellcheck: 'false', 'aria-label': task.kind === 'captcha' ? 'CAPTCHA text' : 'OTP code',
+        placeholder: task.kind === 'captcha' ? 'type what you see' : 'enter OTP',
+      });
+      input.value = draft.value || '';
+      input.addEventListener('input', () => drafts.set(task.id, { ...drafts.get(task.id), value: input.value }));
+      const submit = () => {
+        const value = input.value.trim();
+        if (!value) { msg.className = 'msg err'; msg.textContent = 'Type the text first.'; input.focus(); return; }
+        sendAnswer(task, { kind: task.kind, value }, ui);
+      };
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+      wrap.append(h('label', { class: 'field', for: 'answer' }, task.kind === 'captcha' ? 'CAPTCHA text' : 'OTP code'), input);
+      const row = h('div', { class: 'actions' },
+        addBtn('Submit', 'primary', submit),
+        tasks.length > 1 ? addBtn('Skip for now', 'ghost', () => { const i = tasks.findIndex((t) => t.id === task.id); selectedId = tasks[(i + 1) % tasks.length].id; renderedFocusKey = null; renderAll(); }) : null,
+        h('span', { class: 'hint' }, 'Press ', h('kbd', {}, 'Enter'), ' to send'));
+      wrap.append(row, msg);
+      queueMicrotask(() => input.focus());
+    } else if (task.kind === 'nil_review') {
+      wrap.append(h('p', { class: 'explain' }, 'The portal returned no entries. Check the village, survey number and period before confirming. Empty is not proof the land is clear.'));
+      const note = h('textarea', { class: 'note', placeholder: 'Note (optional)' }); note.value = draft.note || '';
+      note.addEventListener('input', () => drafts.set(task.id, { ...drafts.get(task.id), note: note.value }));
+      wrap.append(h('label', { class: 'field' }, 'Note'), note, h('div', { class: 'actions' },
+        addBtn('Confirm: genuinely no entries', 'ok', () => sendAnswer(task, { kind: 'nil_review', confirmedNil: true, ...(note.value.trim() && { note: note.value.trim() }) }, ui)),
+        addBtn('Not verified / wrong details', 'danger', () => sendAnswer(task, { kind: 'nil_review', confirmedNil: false, ...(note.value.trim() && { note: note.value.trim() }) }, ui))), msg);
+    } else if (task.kind === 'ocr_review') {
+      wrap.append(h('p', { class: 'explain' }, 'Some values were read from a scanned page with low confidence. Compare with the document, then accept.'));
+      const note = h('textarea', { class: 'note', placeholder: 'Note (optional)' }); note.value = draft.note || '';
+      note.addEventListener('input', () => drafts.set(task.id, { ...drafts.get(task.id), note: note.value }));
+      wrap.append(h('label', { class: 'field' }, 'Note'), note, h('div', { class: 'actions' },
+        addBtn('Accept parsed values', 'primary', () => sendAnswer(task, { kind: 'ocr_review', corrections: {}, ...(note.value.trim() && { note: note.value.trim() }) }, ui))), msg);
+    } else if (task.kind === 'payment') {
+      wrap.append(h('p', { class: 'explain' }, 'A certified EC needs a fee paid on the portal. Approve only after the payment is done by an authorised person.'));
+      const ref = h('input', { class: 'small', placeholder: 'Payment reference (optional)' }); ref.value = draft.reference || '';
+      ref.addEventListener('input', () => drafts.set(task.id, { ...drafts.get(task.id), reference: ref.value }));
+      wrap.append(h('label', { class: 'field' }, 'Reference'), ref, h('div', { class: 'actions' },
+        addBtn('Payment done — approve', 'ok', () => sendAnswer(task, { kind: 'payment', approved: true, ...(ref.value.trim() && { reference: ref.value.trim() }) }, ui)),
+        addBtn('Reject', 'danger', () => sendAnswer(task, { kind: 'payment', approved: false }, ui))), msg);
+    } else {
+      wrap.append(h('p', { class: 'explain' }, 'Unknown task type: ' + task.kind), msg);
+    }
+
+    if (Object.keys(restCtx).length) {
+      wrap.append(h('details', { class: 'ctx' }, h('summary', {}, 'Task details'), h('pre', {}, JSON.stringify({ taskId: task.id, requestId: task.requestId, ...restCtx }, null, 2))));
+    }
+    focusEl.append(wrap);
+    tick();
+  }
+
+  // timers only touch text/width — never the input, so typing is never interrupted
+  function tick() {
+    const task = tasks.find((t) => t.id === selectedId);
+    const bar = document.getElementById('tbar'), txt = document.getElementById('ttext');
+    if (task && bar && txt) {
+      const s = ageS(task);
+      bar.style.width = Math.min(100, (s / EXPIRE_S) * 100) + '%';
+      bar.className = s >= EXPIRE_S ? 'bad' : s >= WARN_S ? 'warn' : '';
+      txt.className = s >= EXPIRE_S ? 'bad' : s >= WARN_S ? 'warn' : '';
+      txt.textContent = s >= EXPIRE_S ? s + 's — may have expired, answer anyway or skip' : s + 's since screenshot';
+    }
+    document.querySelectorAll('.age[data-created]').forEach((el) => {
+      const s = Math.max(0, Math.floor((Date.now() - new Date(el.dataset.created)) / 1000));
+      el.textContent = fmt(s); el.classList.toggle('warn', s >= WARN_S);
+    });
+    if (tasks.length) $('st-oldest').textContent = fmt(Math.max(...tasks.map(ageS)));
+  }
+
+  function renderAll() { renderStats(); renderQueue(); renderFocus(); }
+  async function refresh(force) {
+    const ok = await loadOpen();
+    await loadAnswered();
+    if (!ok) { renderStats(); return; }
+    if (force) { renderedFocusKey = null; renderedQueueKey = null; }
+    renderAll();
+  }
+
+  refresh(true);
+  setInterval(() => refresh(false), POLL_MS);
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

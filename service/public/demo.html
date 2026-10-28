@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EC Service — Manual Test Client</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f6f7f9; --card:#fff; --ink:#1a1a1a; --muted:#5c6470; --line:#e4e6ea;
+          --accent:#2557d6; --ok:#1a7f37; --okbg:#e8f5ec; --warn:#b7791f; --warnbg:#fdf3e3; --err:#b3261e; --errbg:#fce9e7; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#15161a; --card:#1e1f24; --ink:#e9e9ec; --muted:#9aa0a6; --line:#32333a;
+          --accent:#7aa2ff; --ok:#4ac26b; --okbg:#16281c; --warn:#e0a83e; --warnbg:#2a2114; --err:#f2836f; --errbg:#2b1512; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:baseline; }
+  header h1 { font-size:15px; margin:0; }
+  header a { color:var(--accent); font-size:12px; }
+  main { max-width:920px; margin:0 auto; padding:20px; display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:760px){ main { grid-template-columns:1fr; } }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .panel h2 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 12px; }
+  .scenarios { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  .scenarios button { font:12px inherit; padding:5px 10px; border:1px solid var(--line); border-radius:999px; background:var(--bg); color:var(--ink); cursor:pointer; }
+  .scenarios button:hover { border-color:var(--accent); }
+  label { display:block; font-size:12px; color:var(--muted); margin:8px 0 3px; }
+  input, select { font:inherit; width:100%; padding:6px 9px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .send { margin-top:14px; width:100%; padding:9px; border:none; border-radius:8px; background:var(--accent); color:#fff; font:500 14px inherit; cursor:pointer; }
+  .send:disabled { opacity:.5; cursor:default; }
+  .timeline { list-style:none; padding:0; margin:0; font-size:13px; }
+  .timeline li { padding:5px 0 5px 22px; position:relative; color:var(--muted); }
+  .timeline li.on { color:var(--ink); }
+  .timeline li:before { content:"○"; position:absolute; left:0; }
+  .timeline li.on:before { content:"●"; color:var(--accent); }
+  .timeline li.done:before { content:"✓"; color:var(--ok); }
+  .badge { display:inline-block; font-size:12px; font-weight:600; padding:3px 10px; border-radius:999px; }
+  .b-ok { background:var(--okbg); color:var(--ok); }
+  .b-warn { background:var(--warnbg); color:var(--warn); }
+  .b-err { background:var(--errbg); color:var(--err); }
+  table { border-collapse:collapse; width:100%; font-size:12px; margin-top:8px; }
+  th,td { text-align:left; padding:5px 7px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; }
+  .kv { font-size:13px; margin:8px 0; }
+  .kv b { color:var(--muted); font-weight:400; }
+  .disclaimer { font-size:12px; color:var(--muted); border-left:2px solid var(--warn); padding-left:10px; margin-top:12px; }
+  pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; font-size:11px; overflow-x:auto; max-height:220px; }
+  .muted { color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>EC Service — Manual Test Client</h1>
+  <a href="/public/console.html">operator console →</a>
+  <a href="/dashboard">dashboard →</a>
+</header>
+<main>
+  <section class="panel">
+    <h2>1 · Build a request</h2>
+    <div class="scenarios" id="scenarios"></div>
+    <div class="row2">
+      <div><label>Search type</label>
+        <select id="searchType"><option>EC_WISE</option><option>DOCUMENT_WISE</option><option>PLOT_FLAT_WARD_WISE</option></select></div>
+      <div><label>Certified?</label>
+        <select id="certified"><option value="false">No (informational)</option><option value="true">Yes (SRO-signed)</option></select></div>
+    </div>
+    <div class="row2">
+      <div><label>Zone</label><input id="zone" value="Chennai" /></div>
+      <div><label>District (advisory)</label><input id="district" value="Chennai" /></div>
+    </div>
+    <div class="row2">
+      <div><label>SRO</label><input id="sroCode" value="Thiruvottiyur" /></div>
+      <div><label>Village</label><input id="village" value="Thiruvottiyur" /></div>
+    </div>
+    <div class="row2">
+      <div><label>Survey number</label><input id="surveyNumber" value="123/4" /></div>
+      <div><label>Subdivision</label><input id="subdivisionNumber" value="1" /></div>
+    </div>
+    <div class="row2">
+      <div><label>Period from</label><input id="from" value="2004-01-01" /></div>
+      <div><label>Period to</label><input id="to" value="2024-12-31" /></div>
+    </div>
+    <button class="send" id="send">Send EC request</button>
+    <p class="muted" id="hint"></p>
+  </section>
+
+  <section class="panel">
+    <h2>2 · What happens</h2>
+    <ul class="timeline" id="timeline">
+      <li data-s="submitted">Request accepted</li>
+      <li data-s="queued">Queued</li>
+      <li data-s="in_progress">Fetching from a provider</li>
+      <li data-s="needs_human">Waiting for an operator</li>
+      <li data-s="terminal">Result ready</li>
+    </ul>
+    <div id="result"></div>
+  </section>
+</main>
+
+<script>
+const KEY = "dev-tenant-key";
+const $ = (id) => document.getElementById(id);
+
+const SCENARIOS = {
+  "TC1 · entries found":      { surveyNumber: "123/4", hint: "mock returns one mortgage entry (survey contains '4')" },
+  "TC4 · no records":         { surveyNumber: "777",   hint: "no entries, not verified -> partial / NIL_UNCONFIRMED" },
+  "TC3 · bad SRO":            { sroCode: "NOPE-999",   hint: "unknown office -> failed / unresolvable" },
+  "CAPTCHA step (operator)":  { surveyNumber: "CAP-1",  hint: "opens a CAPTCHA task — clear it in the operator console, then the job completes" },
+  "needs review (HITL)":      { surveyNumber: "999",   hint: "opens a nil-review task (auto-answered in demo mode)" },
+  "pre-1975 period":          { from: "1960-01-01", surveyNumber: "301", hint: "period predates digitisation -> PERIOD_GAP" },
+  "invalid date":             { from: "2024-13-45", hint: "impossible date -> rejected with 400 (DEF-1 fix)" },
+};
+const sc = $("scenarios");
+for (const [name, patch] of Object.entries(SCENARIOS)) {
+  const b = document.createElement("button");
+  b.textContent = name;
+  b.onclick = () => {
+    ["zone","district","sroCode","village","surveyNumber","subdivisionNumber","from","to"].forEach((f) => {
+      if (f === "surveyNumber") $(f).value = "123/4";
+      if (f === "sroCode") $(f).value = "Thiruvottiyur";
+      if (f === "from") $(f).value = "2004-01-01";
+    });
+    for (const [k, v] of Object.entries(patch)) if ($(k)) $(k).value = v;
+    $("hint").textContent = patch.hint || "";
+  };
+  sc.appendChild(b);
+}
+
+async function poll(requestId) {
+  let last;
+  for (let i = 0; i < 240; i++) {
+    const s = await (await fetch("/v1/ec-requests/" + requestId, { headers: { authorization: "Bearer " + KEY } })).json();
+    last = s;
+    setStage(["completed","partial","failed"].includes(s.status) ? "terminal" : s.status);
+    if (["completed","partial","failed"].includes(s.status)) { sessionStorage.removeItem("ec-demo-rid"); break; }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  renderResult(last);
+  $("send").disabled = false;
+}
+
+// resume an in-flight request after navigating away (e.g. to the operator console)
+window.addEventListener("DOMContentLoaded", () => {
+  const rid = sessionStorage.getItem("ec-demo-rid");
+  if (rid) { $("send").disabled = true; setStage("in_progress"); poll(rid); }
+});
+
+function setStage(stage) {
+  const order = ["submitted","queued","in_progress","needs_human","terminal"];
+  const li = [...$("timeline").children];
+  const idx = order.indexOf(stage);
+  li.forEach((el) => {
+    const i = order.indexOf(el.dataset.s);
+    el.classList.toggle("on", i === idx);
+    el.classList.toggle("done", i < idx || (stage === "terminal" && el.dataset.s !== "terminal"));
+  });
+}
+
+function renderResult(s) {
+  const r = s.result;
+  const el = $("result");
+  if (s.status === "failed") {
+    el.innerHTML = `<p class="kv"><span class="badge b-err">FAILED · ${s.failure.code}</span></p>
+      <p class="kv">${s.failure.message}</p>
+      <details><summary class="muted">raw</summary><pre>${JSON.stringify(s, null, 2)}</pre></details>`;
+    return;
+  }
+  const badgeClass = r.outcome === "ENTRIES_FOUND" ? "b-warn" : r.outcome === "NIL_CONFIRMED" ? "b-ok" : "b-warn";
+  const enc = r.encumbrancePresent === true ? "yes" : r.encumbrancePresent === false ? "no" : "unknown (needs review)";
+  let entries = "";
+  if (r.entries.length) {
+    entries = `<table><tr><th>#</th><th>type</th><th>doc</th><th>registered</th><th>parties</th></tr>` +
+      r.entries.map((e) => `<tr><td>${e.seq}</td><td>${e.instrumentType}</td><td>${e.documentNumber||"-"}</td><td>${e.registrationDate||"-"}</td><td>${e.parties.map((p)=>p.name).join(", ")}</td></tr>`).join("") +
+      `</table>`;
+  }
+  el.innerHTML = `
+    <p class="kv"><span class="badge ${badgeClass}">${r.outcome}</span> <span class="badge ${s.status==="completed"?"b-ok":"b-warn"}">${s.status}</span></p>
+    <p class="kv"><b>Encumbrance present:</b> ${enc}</p>
+    <p class="kv"><b>Entries:</b> ${r.entryCount} &nbsp; <b>Source:</b> ${s.source} &nbsp; <b>Certified:</b> ${r.provenance.certified}</p>
+    ${entries}
+    ${r.caveats.length ? `<p class="kv"><b>Caveats:</b></p><ul class="muted">${r.caveats.map((c)=>`<li>${c.code} — ${c.message}</li>`).join("")}</ul>` : ""}
+    <p class="disclaimer">${r.disclaimer}</p>
+    <details><summary class="muted">raw JSON</summary><pre>${JSON.stringify(s, null, 2)}</pre></details>`;
+}
+
+$("send").onclick = async () => {
+  $("send").disabled = true;
+  $("result").innerHTML = "";
+  setStage("submitted");
+  const body = {
+    searchType: $("searchType").value,
+    certified: $("certified").value === "true",
+    property: {
+      zone: $("zone").value, district: $("district").value, sroCode: $("sroCode").value,
+      village: $("village").value || null, surveyNumber: $("surveyNumber").value || null,
+      subdivisionNumber: $("subdivisionNumber").value || null,
+    },
+    period: { from: $("from").value, to: $("to").value },
+    callbackUrl: "https://example.com/hooks/ec",
+    reference: "manual-test",
+  };
+  try {
+    const res = await fetch("/v1/ec-requests", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer " + KEY, "idempotency-key": "demo-" + Date.now() + Math.random().toString(36).slice(2) },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 400) {
+      const err = await res.json();
+      $("result").innerHTML = `<p class="kv"><span class="badge b-err">400 · validation</span></p><pre>${JSON.stringify(err, null, 2)}</pre>`;
+      $("send").disabled = false;
+      return;
+    }
+    const { requestId } = await res.json();
+    sessionStorage.setItem("ec-demo-rid", requestId);
+    await poll(requestId);
+  } catch (e) {
+    $("result").innerHTML = `<p class="kv"><span class="badge b-err">error</span> ${e.message}</p>`;
+    $("send").disabled = false;
+  }
+};
+</script>
+</body>
+</html>

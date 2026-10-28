@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TN EC Integration — Project Dashboard</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f6f7f9; --card:#fff; --ink:#1a1a1a; --muted:#5c6470; --line:#e4e6ea;
+          --accent:#2557d6; --ok:#1a7f37; --okbg:#e8f5ec; --warn:#b7791f; --warnbg:#fdf3e3; --pend:#6b7280; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#15161a; --card:#1e1f24; --ink:#e9e9ec; --muted:#9aa0a6; --line:#32333a;
+          --accent:#7aa2ff; --ok:#4ac26b; --okbg:#16281c; --warn:#e0a83e; --warnbg:#2a2114; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:960px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  h2 { font-size:16px; margin:36px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  h3 { font-size:15px; margin:0 0 8px; }
+  .lede { color:var(--muted); margin:0 0 20px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .stat .k { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .stat .v { font-size:18px; font-weight:600; margin-top:2px; }
+  .badge { display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; letter-spacing:.03em; }
+  .b-ai { background:var(--warnbg); color:var(--warn); border:1px solid var(--warn); }
+  .b-ok { background:var(--okbg); color:var(--ok); border:1px solid var(--ok); }
+  .b-pend { background:transparent; color:var(--pend); border:1px solid var(--pend); }
+  ul.check { list-style:none; padding:0; margin:0; }
+  ul.check li { padding:6px 0 6px 26px; position:relative; border-bottom:1px solid var(--line); }
+  ul.check li:before { content:"✓"; position:absolute; left:0; color:var(--ok); font-weight:700; }
+  ul.check li.todo:before { content:"○"; color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin:14px 0; }
+  .card .tag { font-size:12px; color:var(--muted); }
+  .card .what { font-style:italic; color:var(--muted); margin:4px 0 12px; }
+  ol.steps { margin:0 0 14px; padding-left:22px; }
+  ol.steps li { margin:5px 0; }
+  .expect { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin:10px 0; }
+  .expect b { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:3px; }
+  .result { display:flex; gap:10px; align-items:center; margin-top:12px; }
+  .result .box { border:2px solid var(--line); border-radius:8px; padding:8px 16px; font-weight:600; color:var(--muted); }
+  .result .box.pass { border-color:var(--ok); color:var(--ok); background:var(--okbg); }
+  details { margin-top:10px; border-top:1px dashed var(--line); padding-top:8px; }
+  details summary { cursor:pointer; color:var(--accent); font-size:13px; }
+  details pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; overflow-x:auto; font-size:12px; }
+  code { background:var(--bg); padding:1px 5px; border-radius:4px; font-size:.9em; }
+  a { color:var(--accent); }
+  .note { font-size:13px; color:var(--muted); }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  .b-live { background:var(--okbg); color:var(--ok); border:1px solid var(--ok); }
+  .b-fix { background:var(--warnbg); color:var(--warn); border:1px solid var(--warn); }
+  .highlight { border:1px solid var(--accent); border-radius:12px; padding:20px 22px; margin:16px 0; background:var(--card); }
+  .highlight h2 { border:none; margin:0 0 10px; }
+  .verdict { display:flex; align-items:center; gap:12px; margin:14px 0; }
+  .verdict .pill { font-size:14px; font-weight:700; padding:8px 18px; border-radius:999px; }
+  .verdict .go { background:var(--okbg); color:var(--ok); border:1px solid var(--ok); }
+  video { width:100%; border-radius:10px; border:1px solid var(--line); background:#000; margin:10px 0; }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:14px 0; font-size:13px; }
+  .flow .step { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px 12px; }
+  .flow .arrow { color:var(--muted); }
+  .timeline { list-style:none; margin:0; padding:0; }
+  .timeline li { padding:8px 0 8px 22px; position:relative; border-bottom:1px solid var(--line); }
+  .timeline li:before { content:"→"; position:absolute; left:0; color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tamil Nadu EC Integration — Project Dashboard</h1>
+  <p class="lede">Making the client's ERP able to pull Tamil Nadu Encumbrance Certificate (EC) data automatically, instead of staff keying details into the TNREGINET government portal by hand.</p>
+
+  <div class="grid">
+    <div class="stat"><div class="k">Build</div><div class="v">Phases 1–4 done</div></div>
+    <div class="stat"><div class="k">Tests</div><div class="v">130+ passing ✅</div></div>
+    <div class="stat"><div class="k">Approach</div><div class="v">Hybrid, aggregator-first</div></div>
+    <div class="stat"><div class="k">Live test</div><div class="v">1 known bug left <span class="badge b-fix">FIX IDENTIFIED</span></div></div>
+  </div>
+
+  <div class="highlight">
+    <h2 style="margin-top:0">🔴 Latest update — first real run against the live government website (12 Sep 2026)</h2>
+    <p>Everything before tonight was tested against a stand-in copy of the portal. Tonight, for the first time, the robot ran against the <b>real</b> <code>tnreginet.gov.in</code> site — with a real person solving each CAPTCHA live. Here's exactly what it did, filmed directly from the robot's own browser:</p>
+    <video controls preload="metadata" poster="">
+      <source src="video/live-portal-automated-run.webm" type="video/webm">
+      Your browser can't play this video — the file is at <code>public/video/live-portal-automated-run.webm</code>.
+    </video>
+    <p class="note">What the recording shows: the page loading, switching to English on its own, closing two pop-up ads, filling in the location step by step, adding the property details, and a real CAPTCHA appearing and being solved by a person.</p>
+
+    <h3 style="margin-top:22px">What worked vs. what didn't</h3>
+    <table>
+      <tr><th>Step</th><th>Result</th></tr>
+      <tr><td>Opening the site &amp; switching to English</td><td><span class="badge b-live">WORKS</span></td></tr>
+      <tr><td>Getting past the pop-up ads</td><td><span class="badge b-live">WORKS</span></td></tr>
+      <tr><td>Filling Zone / District / Sub-Registrar Office / Village</td><td><span class="badge b-live">WORKS</span></td></tr>
+      <tr><td>Adding the survey number</td><td><span class="badge b-live">WORKS</span></td></tr>
+      <tr><td>Showing a real, readable CAPTCHA for a person to solve</td><td><span class="badge b-live">WORKS</span></td></tr>
+      <tr><td>Confirming the CAPTCHA answer with the website</td><td><span class="badge b-live">WORKS</span></td></tr>
+      <tr><td>Filling in the "EC Start Date" / "EC End Date" boxes</td><td><span class="badge b-fix">BUG — fix identified</span></td></tr>
+      <tr><td>Actually getting the search results back</td><td><span class="badge b-fix">blocked by the bug above</span></td></tr>
+    </table>
+
+    <h3 style="margin-top:22px">Why it stalled — in plain terms</h3>
+    <p>The two date boxes on the real form ("EC Start Date" and "EC End Date") open a little pop-up calendar when you click them. Our robot was clicking into the box correctly, but wasn't finishing the job the same way a person clicking a day on that calendar does — so the website quietly saw both boxes as still empty. The website's own rule is: <i>"don't search unless every required box is filled"</i> — so it just stopped, silently, with no error message at all. That's exactly why this took hours to track down: nothing looked broken on screen, it just... did nothing.</p>
+
+    <svg viewBox="0 0 860 190" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:inherit;">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+        </marker>
+      </defs>
+      <!-- step boxes -->
+      <g font-size="13" text-anchor="middle">
+        <rect x="10" y="70" width="130" height="50" rx="8" fill="var(--bg)" stroke="var(--ok)" stroke-width="1.5"/>
+        <text x="75" y="91" fill="var(--ink)">Robot fills the</text>
+        <text x="75" y="107" fill="var(--ink)">whole form</text>
+
+        <line x1="140" y1="95" x2="178" y2="95" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <rect x="180" y="70" width="130" height="50" rx="8" fill="var(--bg)" stroke="var(--ok)" stroke-width="1.5"/>
+        <text x="245" y="91" fill="var(--ink)">Person solves</text>
+        <text x="245" y="107" fill="var(--ink)">the CAPTCHA</text>
+
+        <line x1="310" y1="95" x2="348" y2="95" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <rect x="350" y="70" width="130" height="50" rx="8" fill="var(--bg)" stroke="var(--ok)" stroke-width="1.5"/>
+        <text x="415" y="91" fill="var(--ink)">Robot clicks</text>
+        <text x="415" y="107" fill="var(--ink)">"Search"</text>
+
+        <line x1="480" y1="95" x2="518" y2="95" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <rect x="520" y="20" width="180" height="150" rx="8" fill="var(--bg)" stroke="var(--line)" stroke-width="1.5"/>
+        <text x="610" y="40" fill="var(--muted)" font-size="11" text-transform="uppercase">Website's own 3 checks</text>
+        <text x="535" y="65" fill="var(--ok)" text-anchor="start">✓ Location details</text>
+        <text x="535" y="90" fill="var(--ok)" text-anchor="start">✓ CAPTCHA correct</text>
+        <text x="535" y="115" fill="var(--warn)" text-anchor="start" font-weight="700">✗ Start/End dates</text>
+        <text x="545" y="132" fill="var(--warn)" text-anchor="start" font-size="11">(website sees them</text>
+        <text x="545" y="146" fill="var(--warn)" text-anchor="start" font-size="11">as still empty)</text>
+
+        <line x1="700" y1="95" x2="738" y2="95" stroke="var(--warn)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <rect x="740" y="60" width="110" height="70" rx="8" fill="var(--warnbg)" stroke="var(--warn)" stroke-width="1.5"/>
+        <text x="795" y="88" fill="var(--warn)" font-weight="700">Search never</text>
+        <text x="795" y="104" fill="var(--warn)" font-weight="700">sent —</text>
+        <text x="795" y="120" fill="var(--warn)" font-weight="700">no error shown</text>
+      </g>
+    </svg>
+
+    <p class="note">Full technical trace (every request, response, and line of the website's own code we read to confirm this) is in <code>poc/SELECTORS.md</code>. The fix itself — clicking the actual calendar instead of typing into the box — is written and partly working; it now needs its last selector corrected, a small, well-understood task.</p>
+  </div>
+
+  <div class="highlight">
+    <h2 style="margin-top:0">Should we take this project forward?</h2>
+    <div class="verdict"><span class="pill go">✅ Yes — continue, as planned</span></div>
+    <p>Nothing found tonight changes the recommendation from the original feasibility report. If anything, it sharpens it:</p>
+    <ul class="check">
+      <li>The free, no-login search path on the real government site is <b>proven to work</b> for every step except one, and that one step is a diagnosed, specific bug — not a dead end.</li>
+      <li>Everything else built around it — the queue, the audit trail, the human-in-the-loop console, the retry-on-rejected-CAPTCHA logic, the OCR for old certificates — is solid and has been tested repeatedly, including tonight.</li>
+      <li>Tonight is also a useful, honest data point: a government website can change its own form logic at any time without warning (this looks like a recent addition on their side), which is <i>exactly</i> why the original plan treats our own automation as a <b>backup</b>, not the main path. That recommendation still holds.</li>
+    </ul>
+    <p><b>Recommended path, unchanged:</b> a licensed data provider (Landeed / SurePass) as the main source for volume and reliability, with this automation kept as the fallback for cases the provider can't cover — and accepted as something that will occasionally need a small fix like tonight's, the same way any integration with a website you don't control does.</p>
+  </div>
+
+  <div class="highlight">
+    <h2 style="margin-top:0">Idea — searching for many properties at once</h2>
+    <p>The system was already built to handle more than one request at a time — this isn't a rebuild, it's turning on something the design already supports.</p>
+
+    <svg viewBox="0 0 860 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:inherit;">
+      <defs>
+        <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+        </marker>
+      </defs>
+      <g font-size="13">
+        <rect x="10" y="90" width="150" height="70" rx="8" fill="var(--bg)" stroke="var(--line)" stroke-width="1.5"/>
+        <text x="85" y="118" text-anchor="middle" fill="var(--ink)">A list of, say,</text>
+        <text x="85" y="136" text-anchor="middle" fill="var(--ink)">20 properties</text>
+        <text x="85" y="152" text-anchor="middle" fill="var(--muted)" font-size="11">(one spreadsheet)</text>
+
+        <line x1="160" y1="125" x2="198" y2="125" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        <rect x="200" y="30" width="190" height="200" rx="8" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="295" y="50" text-anchor="middle" fill="var(--accent)" font-size="11">SYSTEM WORKS ON ALL 20</text>
+        <g font-size="12" fill="var(--ink)">
+          <text x="215" y="75">① Property #1 — filling form…</text>
+          <text x="215" y="98">② Property #2 — filling form…</text>
+          <text x="215" y="121">③ Property #3 — filling form…</text>
+          <text x="215" y="144">④ Property #4 — filling form…</text>
+        </g>
+        <text x="295" y="170" text-anchor="middle" fill="var(--muted)" font-size="12">…and so on, all at once,</text>
+        <text x="295" y="188" text-anchor="middle" fill="var(--muted)" font-size="12">automatically, in the</text>
+        <text x="295" y="206" text-anchor="middle" fill="var(--muted)" font-size="12">background</text>
+
+        <line x1="390" y1="125" x2="428" y2="125" stroke="var(--warn)" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        <rect x="430" y="40" width="190" height="180" rx="8" fill="var(--warnbg)" stroke="var(--warn)" stroke-width="1.5"/>
+        <text x="525" y="62" text-anchor="middle" fill="var(--warn)" font-size="11">ONE OPERATOR CONSOLE</text>
+        <text x="525" y="90" text-anchor="middle" fill="var(--ink)" font-size="12">Every property that</text>
+        <text x="525" y="108" text-anchor="middle" fill="var(--ink)" font-size="12">hits a CAPTCHA</text>
+        <text x="525" y="126" text-anchor="middle" fill="var(--ink)" font-size="12">lines up here —</text>
+        <text x="525" y="150" text-anchor="middle" fill="var(--ink)" font-weight="700" font-size="12">one person clears</text>
+        <text x="525" y="168" text-anchor="middle" fill="var(--ink)" font-weight="700" font-size="12">them back-to-back,</text>
+        <text x="525" y="186" text-anchor="middle" fill="var(--ink)" font-weight="700" font-size="12">~10 seconds each</text>
+
+        <line x1="620" y1="125" x2="658" y2="125" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        <rect x="660" y="90" width="190" height="70" rx="8" fill="var(--okbg)" stroke="var(--ok)" stroke-width="1.5"/>
+        <text x="755" y="118" text-anchor="middle" fill="var(--ok)" font-weight="700">All 20 results</text>
+        <text x="755" y="136" text-anchor="middle" fill="var(--ok)" font-weight="700">delivered back</text>
+        <text x="755" y="152" text-anchor="middle" fill="var(--muted)" font-size="11">to the ERP</text>
+      </g>
+    </svg>
+
+    <p>In plain terms: one person's time solving CAPTCHAs is the only fixed cost per property — everything else (opening the site, filling the form, reading the result) the robot does on its own, for as many properties as are queued up. The operator console already lists <i>every</i> open task, not just one, so this mostly means adding a way to submit a whole list at once, not building something new.</p>
+    <p class="note"><b>One real caution:</b> sending a large batch of automated searches at the real government site in a short window risks the same kind of trouble we ran into tonight — a site that starts behaving oddly for automated traffic. Batch mode should pace itself deliberately, and — matching the same recommendation as above — is best used for the overflow a paid provider can't handle, not as the main way to process high volume.</p>
+  </div>
+
+  <h2>Where things stand</h2>
+  <p>We checked every official route. <b>There is no government API</b> for EC search — not from TNREGINET, not from API&nbsp;Setu. The workable path is a licensed data provider (Landeed / SurePass) as the main source, with our own supervised browser automation as a backup, both hidden behind one simple interface the ERP calls. Certified (court/bank-grade) ECs will always take 1–10 days because a government officer has to sign them.</p>
+  <p><b>The whole pipeline is built and tested</b> — database, queue, the full 595-office list, the automation robot (proven against a stand-in portal), OCR for old scanned certificates, the certified-copy flow, and the ERP hand-off. It currently runs on <i>sample data</i>. Two things unlock real data: a sandbox key from a vendor, or running the robot from a server in India.</p>
+  <p class="note">Full write-up: <code>REPORT.md</code>. Plan and decisions: <code>PROJECT.md</code>.</p>
+
+  <h2>What's built so far</h2>
+  <p>Before tonight's live-site run, here's the whole system working end to end (~32 seconds) — a request going in, being validated, queued and routed, three different outcomes handled safely, and the CAPTCHA hand-off to a human operator. This runs against a stand-in copy of the portal (see the note below the video):</p>
+  <video controls preload="metadata">
+    <source src="video/POC-Demo-Walkthrough.webm" type="video/webm">
+    Your browser can't play this video — the file is at <code>public/video/POC-Demo-Walkthrough.webm</code>.
+  </video>
+  <p class="note">What it shows, in order: (1) the project status dashboard, (2) a test request submitted, validated, queued and routed to a data source, (3) three outcomes handled distinctly — entries found, nothing found (flagged "needs review," never reported as a clean title), and a bad office code rejected with a clear error, (4) the request pausing for a human to clear the CAPTCHA, then resuming and completing on its own. This demo runs against a local stand-in of the TNREGINET portal, not the live site — see the "Latest update" section above for the first run against the real one.</p>
+  <ul class="check">
+    <li>Feasibility assessment — official APIs, API Setu, third-party providers, blockers, architecture</li>
+    <li>Project charter, phased plan, decision log</li>
+    <li>The interface the ERP will call — spec + machine-readable OpenAPI</li>
+    <li>One standard "EC result" format that every data source maps into</li>
+    <li>Async service: request intake, validation, provider routing with automatic failover, webhook delivery + polling, de-duplication</li>
+    <li>Production infra: Postgres store with a full audit trail, a durable crash-safe job queue, file storage with signed download links, metrics, per-customer rate limits</li>
+    <li>Complete Tamil Nadu office list — all 595 Sub-Registrar offices across 11 zones</li>
+    <li>Browser-automation worker — proven end to end (login, CAPTCHA, form, OTP, scrape) against a stand-in copy of the TNREGINET portal</li>
+    <li>Reads old scanned certificates with OCR and flags every line for a person to check</li>
+    <li>Certified-copy flow: payment step → "waiting for the Sub-Registrar to sign" → signed PDF delivered (the real 1–10 day wait, handled asynchronously)</li>
+    <li>Operator console + manual test client (<code>/demo</code>) — drive it all from a browser</li>
+    <li>Test suites — 130+ checks (unit, API, browser, automation, ERP contract, OCR, load), all passing</li>
+    <li>Vendor RFP + outreach emails (sent)</li>
+    <li class="todo">Real Landeed / SurePass data — needs a sandbox key from them</li>
+    <li class="todo">Automation against the <i>real</i> portal — needs a server in India + a portal account</li>
+    <li class="todo">Real payment gateway for certified copies</li>
+  </ul>
+
+  <h2>How it's built</h2>
+  <p>One property lookup, from the moment the ERP asks, to the moment it gets an answer back — automatically, except for one clearly marked step that always needs a person.</p>
+
+  <svg viewBox="0 0 680 700" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:480px;height:auto;display:block;margin:0 auto;font-family:inherit;">
+    <defs>
+      <marker id="arch-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+      </marker>
+    </defs>
+    <g font-size="13">
+      <!-- 1. ERP -->
+      <rect x="190" y="6" width="300" height="58" rx="8" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.6"/>
+      <text x="340" y="30" text-anchor="middle" font-weight="700" fill="var(--ink)">Your ERP / CRM system</text>
+      <text x="340" y="49" text-anchor="middle" font-size="11" fill="var(--muted)">sends: "look up this property"</text>
+
+      <line x1="340" y1="64" x2="340" y2="98" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arch-arrow)"/>
+
+      <!-- 2. EC Service -->
+      <rect x="150" y="100" width="290" height="58" rx="8" fill="var(--card)" stroke="var(--line)" stroke-width="1.6"/>
+      <text x="295" y="124" text-anchor="middle" font-weight="700" fill="var(--ink)">EC Service</text>
+      <text x="295" y="143" text-anchor="middle" font-size="11" fill="var(--muted)">checks the request makes sense, saves it</text>
+
+      <line x1="440" y1="129" x2="496" y2="129" stroke="var(--muted)" stroke-width="1.3" stroke-dasharray="3,3" marker-end="url(#arch-arrow)"/>
+      <rect x="498" y="102" width="150" height="54" rx="8" fill="var(--bg)" stroke="var(--line)" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="573" y="124" text-anchor="middle" font-weight="700" fill="var(--ink)" font-size="12">Database</text>
+      <text x="573" y="141" text-anchor="middle" font-size="10" fill="var(--muted)">remembers every request</text>
+
+      <line x1="295" y1="158" x2="295" y2="192" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arch-arrow)"/>
+
+      <!-- 3. Queue -->
+      <rect x="150" y="194" width="290" height="54" rx="8" fill="var(--card)" stroke="var(--line)" stroke-width="1.6"/>
+      <text x="295" y="216" text-anchor="middle" font-weight="700" fill="var(--ink)">Job Queue</text>
+      <text x="295" y="234" text-anchor="middle" font-size="11" fill="var(--muted)">lines up work, retries anything that fails</text>
+
+      <line x1="295" y1="248" x2="295" y2="282" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arch-arrow)"/>
+
+      <!-- 4. Router -->
+      <rect x="150" y="284" width="290" height="54" rx="8" fill="var(--card)" stroke="var(--line)" stroke-width="1.6"/>
+      <text x="295" y="306" text-anchor="middle" font-weight="700" fill="var(--ink)">Router</text>
+      <text x="295" y="324" text-anchor="middle" font-size="11" fill="var(--muted)">decides where to get the answer from</text>
+
+      <!-- fork -->
+      <line x1="295" y1="338" x2="295" y2="356" stroke="var(--muted)" stroke-width="1.5"/>
+      <line x1="150" y1="356" x2="530" y2="356" stroke="var(--muted)" stroke-width="1.5"/>
+      <line x1="150" y1="356" x2="150" y2="374" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arch-arrow)"/>
+      <line x1="530" y1="356" x2="530" y2="374" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arch-arrow)"/>
+
+      <!-- 5a. Primary provider -->
+      <rect x="20" y="376" width="260" height="92" rx="8" fill="var(--okbg)" stroke="var(--ok)" stroke-width="1.6"/>
+      <rect x="34" y="386" width="76" height="19" rx="10" fill="var(--ok)"/>
+      <text x="72" y="399.5" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff">PRIMARY</text>
+      <text x="150" y="428" text-anchor="middle" font-weight="700" fill="var(--ink)" font-size="13">Paid provider API</text>
+      <text x="150" y="446" text-anchor="middle" font-size="10.5" fill="var(--muted)">(Landeed, SurePass) — fastest,</text>
+      <text x="150" y="461" text-anchor="middle" font-size="10.5" fill="var(--muted)">lowest-risk route to a real answer</text>
+
+      <!-- 5b. Backup automation -->
+      <rect x="400" y="376" width="260" height="92" rx="8" fill="var(--warnbg)" stroke="var(--warn)" stroke-width="1.6"/>
+      <rect x="414" y="386" width="72" height="19" rx="10" fill="var(--warn)"/>
+      <text x="450" y="399.5" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff">BACKUP</text>
+      <text x="530" y="428" text-anchor="middle" font-weight="700" fill="var(--ink)" font-size="13">Our own automation</text>
+      <text x="530" y="446" text-anchor="middle" font-size="10.5" fill="var(--muted)">a program that fills in the</text>
+      <text x="530" y="461" text-anchor="middle" font-size="10.5" fill="var(--muted)">government site like a person would</text>
+
+      <line x1="530" y1="468" x2="530" y2="492" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arch-arrow)"/>
+
+      <!-- 6. Human operator -->
+      <rect x="400" y="494" width="260" height="72" rx="8" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.6"/>
+      <rect x="414" y="504" width="130" height="19" rx="10" fill="var(--accent)"/>
+      <text x="479" y="517.5" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff">HUMAN STEP</text>
+      <text x="530" y="542" text-anchor="middle" font-weight="700" fill="var(--ink)" font-size="12.5">A person clears the CAPTCHA</text>
+      <text x="530" y="558" text-anchor="middle" font-size="10.5" fill="var(--muted)">(and OTP, if asked) — never automated</text>
+
+      <!-- merge -->
+      <line x1="150" y1="468" x2="150" y2="602" stroke="var(--muted)" stroke-width="1.5"/>
+      <line x1="530" y1="566" x2="530" y2="602" stroke="var(--muted)" stroke-width="1.5"/>
+      <line x1="150" y1="602" x2="530" y2="602" stroke="var(--muted)" stroke-width="1.5"/>
+      <line x1="295" y1="602" x2="295" y2="620" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arch-arrow)"/>
+
+      <!-- 7. Storage -->
+      <rect x="150" y="622" width="290" height="54" rx="8" fill="var(--card)" stroke="var(--line)" stroke-width="1.6"/>
+      <text x="295" y="644" text-anchor="middle" font-weight="700" fill="var(--ink)" font-size="13">Result &amp; Document Storage</text>
+      <text x="295" y="662" text-anchor="middle" font-size="11" fill="var(--muted)">saves the certificate + a clean summary, then delivers it back to the ERP automatically</text>
+    </g>
+  </svg>
+  <p class="note" style="text-align:center">Legend: <span style="color:var(--ink)">white/card boxes</span> = always runs · <span style="color:var(--ok)">green</span> = primary data source · <span style="color:var(--warn)">amber</span> = backup data source · <span style="color:var(--accent)">blue</span> = needs a human</p>
+
+  <h3 style="margin-top:26px">Frameworks &amp; tools used</h3>
+  <table>
+    <tr><th>Tool</th><th>Category</th><th>What it's for, in plain terms</th></tr>
+    <tr><td><b>Node.js + TypeScript</b></td><td>Language</td><td>The programming language the whole service is written in — TypeScript catches mistakes before they reach real users.</td></tr>
+    <tr><td><b>Fastify</b></td><td>Web framework</td><td>Handles the "front door" — receiving a request from the ERP and sending a reply.</td></tr>
+    <tr><td><b>PostgreSQL</b></td><td>Database</td><td>Stores every request, its status, and a full history — the record-keeper.</td></tr>
+    <tr><td><b>A job queue</b></td><td>Task management</td><td>Makes sure lookups happen in order, retry automatically if something fails, and one slow request doesn't hold up the rest.</td></tr>
+    <tr><td><b>Playwright</b></td><td>Browser automation</td><td>Drives a real web browser automatically — used only for the backup route, filling in the government site the way a person would.</td></tr>
+    <tr><td><b>Tesseract OCR</b></td><td>Text recognition</td><td>Reads text out of old, scanned certificate images so they can be turned into structured data too.</td></tr>
+    <tr><td><b>Signed webhooks</b></td><td>Delivery</td><td>The mechanism that reliably sends the finished answer back to the ERP, and proves it really came from us.</td></tr>
+    <tr><td><b>Encrypted file storage</b></td><td>Documents</td><td>Where the actual certificate files and summaries are kept, safely and privately.</td></tr>
+  </table>
+  <p class="note">None of this is exotic — every tool above is a mainstream, widely-used choice, picked because it's boring and reliable, not because it's novel. Full technical reasoning for each choice is in <code>submission/TN-EC-Production-Architecture.pdf</code>.</p>
+
+  <h2>Testing</h2>
+  <p class="note">Full step-by-step test cases in plain language (for a non-technical tester, easiest via the <a href="/demo">manual test client</a>) are in <code>verification/MANUAL-TEST-CASES.md</code>. The technical QA record is in <code>verification/QA-REPORT.md</code>.</p>
+  <div class="grid">
+    <div class="stat"><div class="k">Automated checks</div><div class="v">130+ passing <span class="badge b-ok">✓</span></div></div>
+    <div class="stat"><div class="k">Manual test cases</div><div class="v">8 of 8 <span class="badge b-ai">AI VERIFIED</span></div></div>
+    <div class="stat"><div class="k">Live government-site run</div><div class="v">6 of 8 steps confirmed</div></div>
+  </div>
+  <p class="note">The 8 manual cases cover: request intake &amp; result delivery, the human CAPTCHA hand-off, rejecting a bad location cleanly, never reporting "no records" as "clean title", not paying a provider twice for the same lookup, surviving a mid-job restart, the full browser-automation run against a stand-in portal, and the certified-copy pay-and-sign flow. All 8 pass against the stand-in portal and automated suite; the one open item is the live-site date-picker bug described above.</p>
+
+  <h2>Decisions we need from the client</h2>
+  <table>
+    <tr><th>#</th><th>Decision</th><th>Why it matters</th></tr>
+    <tr><td>D1</td><td>Monthly EC volume + how many need a certified copy</td><td>Vendor pricing, sizing</td></tr>
+    <tr><td>D2</td><td>Which districts / SRO offices</td><td>Vendor coverage check</td></tr>
+    <tr><td>D3</td><td>Budget per EC lookup</td><td>Vendor choice / build vs buy</td></tr>
+    <tr><td>D4</td><td>Is our own browser automation allowed, or licensed-vendor only?</td><td>Whether we build the fallback</td></tr>
+    <tr><td>D5</td><td>Who staffs the operator console + owns an Indian SIM/mailbox for OTPs</td><td>Fallback + certified flow</td></tr>
+    <tr><td>D6</td><td>Data retention + India-only processing rules</td><td>Storage design, vendor DPA</td></tr>
+    <tr><td>D7</td><td>Tech stack sign-off (built on: Node + TypeScript + Postgres)</td><td>Production build</td></tr>
+    <tr><td>D8</td><td>Any existing relationship with the TN Registration Dept</td><td>Could unlock a real API</td></tr>
+  </table>
+
+  <h2>Next actions</h2>
+  <ul class="check">
+    <li class="todo">Send the client the scope sheet (D1–D8)</li>
+    <li class="todo">Follow up with Landeed + SurePass for sandbox keys / quotes (RFPs sent)</li>
+    <li class="todo">Client legal review of the vendor route and direct automation</li>
+    <li class="todo">ERP team signs off the API contract (<code>docs/openapi.yaml</code>)</li>
+  </ul>
+
+  <p class="note" style="margin-top:30px">Status legend — <span class="badge b-ai">AI VERIFIED</span> automated tests pass &amp; Claude ran it, pending human confirmation ·
+    <span class="badge b-ok">SIGNED OFF</span> a person completed the click-through ·
+    <span class="badge b-pend">PENDING</span> not started.</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "name": "ec-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "EC Service — async internal API the client ERP calls for Tamil Nadu Encumbrance Certificate retrieval.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@fastify/static": "^8.0.3",
+    "@types/pg": "^8.23.1",
+    "fastify": "^5.1.0",
+    "pg": "^8.23.0",
+    "playwright": "^1.63.0",
+    "tesseract.js": "^7.0.0",
+    "undici": "^6.21.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

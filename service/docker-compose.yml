@@ -1,0 +1,31 @@
+# Local stack for the Postgres backend. The service also runs fully in-memory
+# (BACKEND=memory, the default) with no infra — this is for exercising the
+# Postgres store + durable queue against a real server.
+services:
+  ec-service:
+    build: .
+    ports: ["8080:8080"]
+    environment:
+      PORT: "8080"
+      BACKEND: "postgres"
+      DATABASE_URL: "postgres://ec:ec@db:5432/ec"
+      STORAGE: "local:/data/objects"
+      WEBHOOK_SIGNING_SECRET: "dev-secret-change-me"
+      TENANT_KEYS: '{"erp-staging":"dev-tenant-key"}'
+      HITL_MODE: "console"
+      PROVIDER_ORDER: "aggregator:landeed,aggregator:surepass,automation,mock"
+    volumes: ["ecobjects:/data/objects"]
+    depends_on: [db]
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ec
+      POSTGRES_PASSWORD: ec
+      POSTGRES_DB: ec
+    ports: ["5432:5432"]
+    volumes: ["ecdata:/var/lib/postgresql/data"]
+
+volumes:
+  ecdata:
+  ecobjects:

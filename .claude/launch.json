@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ec-service",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "service", "run", "dev"],
+      "port": 8080
+    }
+  ]
+}
