@@ -1,5 +1,10 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { buildApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
+
+const envPath = fileURLToPath(new URL("../.env", import.meta.url));
+if (existsSync(envPath)) process.loadEnvFile(envPath);
 
 const config = loadConfig();
 const app = await buildApp();

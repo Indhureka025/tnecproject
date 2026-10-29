@@ -205,7 +205,7 @@ export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance
   });
 
   // ---- ops / HITL ----
-  registerHitlRoutes(app, hitl);
+  registerHitlRoutes(app, hitl, config.operatorBridgeToken, config.hitlMode === "console");
   app.get("/ops/coverage", async () => coverage());
 
   // ---- observability ----

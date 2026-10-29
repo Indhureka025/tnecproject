@@ -33,5 +33,11 @@
     "stepTimeoutMs": 45000,
     "stopBeforeLogin": true,
     "downloadPdf": false
+  },
+
+  "operatorConsole": {
+    "_note": "Optional. Set both values to send CAPTCHA images to the service operator console instead of the terminal.",
+    "baseUrl": "http://localhost:8080",
+    "bridgeToken": "cfec1d40b81ff2839afc9959352d800ff7806253db7c7c5320816a60304b57ec"
   }
 }

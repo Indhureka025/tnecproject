@@ -11,14 +11,19 @@
  *   npm run ec:search
  *
  * OPTIONAL config.json -> "run":
- *   "downloadDir": "C:/Users/you/Documents/EC-PDFs"   (default: your Downloads folder)
- *   "openAfterDownload": false                        (default: true = open the PDF)
+ *   "downloadDir": "C:/Users/you/Documents/TNECT"   (default: Documents/TNECT)
+ *   "pdfName": ""                                   (empty = automatic name from the search details)
+ *   "openAfterDownload": false                      (default: true = open the PDF)
+ *
+ * PDF file name: <name>_<date>_<time>.pdf
+ *   e.g. EC_Thiruvettriyur_123-4_2026-10-28_14-35-20.pdf
  */
 
 import { chromium } from "playwright";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { exec } from "node:child_process";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
@@ -31,9 +36,39 @@ const cfg = JSON.parse(fs.readFileSync(new URL("./config.json", import.meta.url)
 const ARTIFACTS = path.resolve(cfg.run.artifactsDir ?? "./artifacts");
 fs.mkdirSync(ARTIFACTS, { recursive: true });
 
-// Where downloaded PDFs are saved (default: your normal Downloads folder)
-const DOWNLOAD_DIR = path.resolve(cfg.run.downloadDir ?? path.join(os.homedir(), "Downloads"));
+// Where downloaded PDFs are saved (default: Documents/TNECT). Only PDFs go here.
+function expandHome(p) { return p.startsWith("~") ? path.join(os.homedir(), p.slice(1)) : p; }
+const DOWNLOAD_DIR = path.resolve(expandHome(cfg.run.downloadDir ?? path.join(os.homedir(), "Documents", "TNECT")));
 fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
+
+let PDF_NAME = "EC"; // set at the start of the run (see resolvePdfName)
+
+// local time stamp, e.g. 2026-10-28_14-35-20
+function stamp() {
+  const d = new Date(), p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
+}
+function cleanName(s) {
+  return String(s ?? "").replace(/\.pdf$/i, "").replace(/[<>:"/\\|?*\x00-\x1f]/g, "").trim().replace(/\s+/g, "_").slice(0, 80);
+}
+// <downloadDir>/<name>_<timestamp>.pdf  (adds _1, _2 if the same name already exists)
+function nextPdfPath() {
+  const base = `${PDF_NAME}_${stamp()}`;
+  let file = path.join(DOWNLOAD_DIR, `${base}.pdf`);
+  for (let i = 1; fs.existsSync(file); i++) file = path.join(DOWNLOAD_DIR, `${base}_${i}.pdf`);
+  return file;
+}
+// Automatic name from the search details: EC_<village>_<survey>-<subdivision>
+// (or the fixed name from config run.pdfName, if you set one)
+function resolvePdfName() {
+  const custom = cleanName(cfg.run.pdfName);
+  if (custom) return custom;
+  const s = cfg.search ?? {};
+  const sub = s.subdivisionNumber ? `-${s.subdivisionNumber}` : "";
+  const name = cleanName(`EC_${s.village ?? ""}_${s.surveyNumber ?? ""}${sub}`.replace(/[\/\\]/g, "-"))
+    .replace(/_+/g, "_").replace(/^_|_$/g, "");
+  return name || "EC";
+}
 
 const ts = () => new Date().toISOString().replace(/[:.]/g, "-");
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -47,11 +82,9 @@ function openFile(file) {
   exec(cmd, (err) => err && log(`  could not auto-open: ${err.message}`));
 }
 
-// Save a portal download with a proper .pdf name, then open it
+// Save a portal download as <name>_<timestamp>.pdf in DOWNLOAD_DIR, then open it
 async function saveDownload(download) {
-  let name = download.suggestedFilename();
-  if (!/\.pdf$/i.test(name)) name += ".pdf"; // portal may give no extension
-  const dest = path.join(DOWNLOAD_DIR, `${ts()}__${name}`);
+  const dest = nextPdfPath();
   await download.saveAs(dest);
   log(`  DOWNLOAD saved -> ${dest}`);
   const head = fs.readFileSync(dest).subarray(0, 5).toString();
@@ -303,10 +336,75 @@ async function humanCaptcha(page, where = "search") {
   const file = path.join(ARTIFACTS, `${ts()}__captcha-${where}.png`);
   await img.screenshot({ path: file }).catch(() => {});
   log(`  captcha image saved -> ${file}  (open it, read the code)`);
-  const code = await ask("  >> Enter the CAPTCHA text exactly as shown: ");
+  let code;
+  const bridge = cfg.operatorConsole ?? {};
+  const baseUrl = typeof bridge.baseUrl === "string" ? bridge.baseUrl.trim().replace(/\/+$/, "") : "";
+  const bridgeToken = typeof bridge.bridgeToken === "string" ? bridge.bridgeToken.trim() : "";
+  if (baseUrl || bridgeToken) {
+    if (!baseUrl || !bridgeToken) {
+      throw new Error("operatorConsole.baseUrl and operatorConsole.bridgeToken must both be configured.");
+    }
+
+    const headers = {
+      "content-type": "application/json",
+      "x-operator-bridge-token": bridgeToken,
+    };
+    const createResponse = await fetch(`${baseUrl}/ops/bridge/tasks`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        requestId: `poc-${randomUUID()}`,
+        context: {
+          note: `TNREGINET ${where} CAPTCHA`,
+          imageBase64: `data:image/png;base64,${fs.readFileSync(file).toString("base64")}`,
+        },
+      }),
+    });
+    if (!createResponse.ok) {
+      throw new Error(`Could not create operator CAPTCHA task (${createResponse.status}): ${await createResponse.text()}`);
+    }
+    const { taskId } = await createResponse.json();
+    if (typeof taskId !== "string" || !taskId) {
+      throw new Error("Operator service returned an invalid CAPTCHA task ID.");
+    }
+
+    const consoleUrl = `${baseUrl}/public/console.html`;
+    let consolePage = context.pages().find((candidate) => candidate.url().startsWith(consoleUrl));
+    if (!consolePage) consolePage = await context.newPage();
+    await consolePage.goto(consoleUrl, { waitUntil: "domcontentloaded", timeout: cfg.run.stepTimeoutMs });
+    log(`  CAPTCHA task ${taskId} opened in the operator console: ${consoleUrl}`);
+
+    const taskUrl = `${baseUrl}/ops/bridge/tasks/${encodeURIComponent(taskId)}`;
+    const deadline = Date.now() + 15 * 60_000;
+    while (Date.now() < deadline) {
+      const taskResponse = await fetch(taskUrl, { headers: { "x-operator-bridge-token": bridgeToken } });
+      if (!taskResponse.ok) {
+        throw new Error(`Could not check operator CAPTCHA task (${taskResponse.status}): ${await taskResponse.text()}`);
+      }
+      const task = await taskResponse.json();
+      if (task.status === "expired") {
+        throw new Error("Operator CAPTCHA task expired before it was answered.");
+      }
+      if (task.status === "answered") {
+        if (task.answer?.kind !== "captcha" || typeof task.answer.value !== "string" || !task.answer.value.trim()) {
+          throw new Error("Operator console returned an invalid CAPTCHA answer.");
+        }
+        code = task.answer.value.trim();
+        break;
+      }
+      if (task.status !== "open") {
+        throw new Error(`Operator CAPTCHA task has unexpected status "${task.status}".`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    if (!code) throw new Error("Timed out waiting for the operator to answer the CAPTCHA.");
+  } else {
+    code = await ask("  >> Enter the CAPTCHA text exactly as shown: ");
+  }
   await page.locator("#txt_Captcha").fill(code);
 }
 
+let context;
 async function submitAndCollect(page) {
   log("STEP submit search");
   await humanCaptcha(page, "search");
@@ -323,30 +421,81 @@ async function submitAndCollect(page) {
   await page.waitForLoadState("networkidle", { timeout: cfg.run.stepTimeoutMs }).catch(() => {});
   await snap(page, "05-results");
 
-  const bodyText = (await page.textContent("body").catch(() => "")) || "";
-  if (/no records? found|no encumbrance|No Documents registered/i.test(bodyText)) {
-    log("  RESULT: portal reports no records for this property/period.");
-    log("  -> a HUMAN must confirm this is a genuine 'clean' EC and not a wrong village/period/survey.");
-    return { outcome: "NO_RECORDS" };
-  }
-
   if (cfg.run.downloadPdf === false) {
     log("  RESULT: results page reached; PDF download disabled by config.");
     return { outcome: "RESULTS_NO_DOWNLOAD" };
   }
 
-  // TODO: verify — result table + the "download PDF" link
-  const pdfLink = await firstVisible(page, ['a:has-text("PDF")', 'a:has-text("Download")', 'a[href$=".pdf"]'])
-    .catch(() => null);
+  // Portal flow after the CAPTCHA (confirmed from real screenshots):
+  //   [optional "Data Availability Period ... Ok" popup]
+  //   -> Acknowledgement page: "Your PDF has been generated successfully! Click here to download PDF"  [OK]
+  // NOTE: the search form itself has an unrelated "Click Here to know data availability period" link,
+  // so we ONLY click "Click here" once the Acknowledgement text is on screen.
+  const ackText = page.getByText(/PDF has been generated|to download PDF/i).first();
+  const noRecords = page.getByText(/no records? found|no encumbrance|No Documents registered/i).first();
+  const okSel = [
+    '.swal2-confirm', '.swal-button--confirm', '.bootbox .btn-primary',
+    'button:text-matches("^\\s*ok\\s*$", "i")',
+    'input[value="OK" i]', 'a:text-matches("^\\s*ok\\s*$", "i")',
+    '#btnOk', '#btn_Ok',
+  ].join(", ");
+
+  log("  waiting for the 'PDF generated' page (auto-clicking any OK popup on the way)...");
+  let pdfLink = null;
+  const deadline = Date.now() + 90000;
+  while (Date.now() < deadline) {
+    if (cfg.run.downloadSelector && await page.locator(cfg.run.downloadSelector).first().isVisible().catch(() => false)) {
+      pdfLink = page.locator(cfg.run.downloadSelector).first();
+      break;
+    }
+    if (await ackText.isVisible().catch(() => false)) {
+      log("  'PDF has been generated' page reached");
+      pdfLink = page.getByText(/click\s*here/i).first();
+      break;
+    }
+    if (await noRecords.isVisible().catch(() => false)) {
+      log("  RESULT: portal reports no records for this property/period (visible on screen).");
+      log("  -> a HUMAN must confirm this is a genuine 'clean' EC and not a wrong village/period/survey.");
+      return { outcome: "NO_RECORDS" };
+    }
+    const ok = page.locator(okSel).first();
+    if (await ok.isVisible().catch(() => false)) {
+      log("  OK popup found — clicking OK");
+      await ok.click({ timeout: 3000 }).catch(() => {});
+    }
+    await page.waitForTimeout(700);
+  }
+
   if (pdfLink) {
-    // The page-level "download" handler (see main) saves the file to DOWNLOAD_DIR and opens it.
-    await Promise.all([
-      page.waitForEvent("download", { timeout: cfg.run.stepTimeoutMs }),
-      pdfLink.click(),
-    ]);
-    await page.waitForTimeout(1500); // give the handler time to save + open
-    log("  RESULT: download triggered — saved and opened by the download handler (informational copy; certified EC is a separate Apply flow)");
-    return { outcome: "PDF_DOWNLOADED", folder: DOWNLOAD_DIR };
+    log(`  download button found: "${(await pdfLink.textContent().catch(() => "")).trim()}" — clicking`);
+    const before = new Set(context.pages());
+    const dl = page.waitForEvent("download", { timeout: 20000 }).catch(() => null);
+    await pdfLink.click();
+    const got = await dl;
+    if (got) {
+      await page.waitForTimeout(1500); // let the download handler save + open it
+      log("  RESULT: PDF downloaded automatically (informational copy; certified EC is a separate Apply flow)");
+      return { outcome: "PDF_DOWNLOADED", folder: DOWNLOAD_DIR };
+    }
+    // No download event: the PDF may have opened in a new tab / inline viewer. Save it ourselves.
+    const popup = context.pages().find((p) => !before.has(p));
+    const target = popup ?? page;
+    await target.waitForLoadState("load", { timeout: 15000 }).catch(() => {});
+    const res = await context.request.get(target.url()).catch(() => null);
+    const body = res ? await res.body().catch(() => null) : null;
+    if (body && body.subarray(0, 5).toString() === "%PDF-") {
+      const dest = nextPdfPath();
+      fs.writeFileSync(dest, body);
+      log(`  DOWNLOAD saved -> ${dest}`);
+      if (cfg.run.openAfterDownload !== false) openFile(dest);
+      return { outcome: "PDF_DOWNLOADED", folder: DOWNLOAD_DIR };
+    }
+    await snap(target, "06-after-download-click");
+    log("  clicked the button but no PDF came back — see the screenshot in artifacts.");
+  } else {
+    await snap(page, "06-no-download-button");
+    fs.writeFileSync(path.join(ARTIFACTS, `${ts()}__results-page.html`), await page.content().catch(() => ""));
+    log("  no download button matched — saved results-page screenshot + HTML to artifacts. Set run.downloadSelector in config.json to the button's selector.");
   }
 
   log("  RESULT: results page reached but no download link located — inspect artifacts.");
@@ -366,13 +515,15 @@ const STEPS = [
 ];
 
 (async () => {
+  log("ec-search VERSION 5 (auto OK + 'Click here' download + auto PDF name in TNECT folder)");
+  PDF_NAME = resolvePdfName();
   log(`TNREGINET EC POC — artifacts dir: ${ARTIFACTS}`);
-  log(`PDF downloads go to: ${DOWNLOAD_DIR}`);
+  log(`PDF will be saved as: ${PDF_NAME}_<date>_<time>.pdf  ->  ${DOWNLOAD_DIR}`);
   const browser = await chromium.launch({
     headless: cfg.run.headless ?? false,
     slowMo: cfg.run.slowMoMs ?? 100,
   });
-  const context = await browser.newContext({
+  context = await browser.newContext({
     acceptDownloads: true,
     locale: "en-IN",
     timezoneId: "Asia/Kolkata",
@@ -380,9 +531,14 @@ const STEPS = [
   });
   const page = await context.newPage();
   // Also catches a download you click by hand in the browser window.
-  page.on("download", (download) => {
+  const onDownload = (download) => {
     saveDownload(download).catch((e) => log(`  download save failed: ${e.message}`));
-  });
+  };
+  // Native browser alert()/confirm() boxes (the "OK" screen may be one): accept automatically.
+  const onDialog = (d) => { log(`  portal dialog: "${d.message()}" -> OK`); d.accept().catch(() => {}); };
+  page.on("download", onDownload);
+  page.on("dialog", onDialog);
+  context.on("page", (p) => { p.on("download", onDownload); p.on("dialog", onDialog); }); // popups/new tabs
   page.setDefaultTimeout(cfg.run.stepTimeoutMs ?? 45000);
 
   const summary = [];
@@ -402,7 +558,7 @@ const STEPS = [
     fs.writeFileSync(file, JSON.stringify(summary, null, 2));
     log(`run summary -> ${file}`);
     log("\n==== SUMMARY ====");
-    for (const s of summary) log(`  ${s.ok ? "OK  " : "FAIL"}  ${s.step}${s.error ? "  :: " + s.error : ""}`);
+    for (const s of summary) log(`  ${s.ok ? "OK  " : "FAIL"}  ${s.step}${s.error ? "  :: " + s.error : ""}${s.result?.outcome ? "  => " + s.result.outcome : ""}`);
     if (!cfg.run.headless) {
       await ask("\nPress Enter to close the browser...");
     }

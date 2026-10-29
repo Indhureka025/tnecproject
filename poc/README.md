@@ -13,8 +13,11 @@ npm run ec:search
 ```
 
 A headed Chromium opens and walks the flow. When it reaches the CAPTCHA it saves
-the CAPTCHA image to `./artifacts/` and waits for you to type the code in the
-terminal. Every step also drops a screenshot; any failure dumps the page HTML.
+the CAPTCHA image to `./artifacts/`. By default it waits for you to type the
+code in the terminal. To send it to the service operator console instead, set
+`operatorConsole.baseUrl` and `operatorConsole.bridgeToken` in `config.json` as
+described below. Every step also drops a screenshot; any failure dumps the page
+HTML.
 
 ## Important preconditions
 
@@ -32,6 +35,15 @@ terminal. Every step also drops a screenshot; any failure dumps the page HTML.
   the portal's date-picker plugin, then checks that each field contains the
   requested date. If the portal rejects a date or the picker changes it, the
   form step fails instead of continuing with a different date.
+- **CAPTCHA operator console (optional).** Start the service with
+  `OPERATOR_BRIDGE_TOKEN` set, then set the same secret in
+  `operatorConsole.bridgeToken` and the service URL in
+  `operatorConsole.baseUrl` in `config.json`. The POC opens the console in a
+  browser tab when a CAPTCHA appears and waits for the operator's answer.
+  Leave both values empty to keep using terminal input. This bridge handles
+  CAPTCHA only; OTP prompts still use the terminal. Setup steps and the
+  local-only security limitation are documented in
+  [the service README](../service/README.md#connect-the-standalone-playwright-poc).
 - **Anonymous vs logged-in.** With `run.stopBeforeLogin: true` the script searches
   without an account (the full EC PDF may require login). Set it to `false` and
   fill `account` to exercise the login + OTP path. Set `run.downloadPdf: false`

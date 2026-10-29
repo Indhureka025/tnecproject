@@ -19,6 +19,7 @@ export interface Config {
   /** "memory" | "local:<dir>" object store for EC documents */
   storage: string;
   providerOrder: string[];
+  operatorBridgeToken: string;
   webhookSigningSecret: string;
   tenantKeys: Record<string, string>;
   hitlMode: "auto" | "console";
@@ -49,6 +50,7 @@ export function loadConfig(): Config {
     databaseUrl: env("DATABASE_URL", "pglite://memory"),
     storage: env("STORAGE", "memory"),
     providerOrder: env("PROVIDER_ORDER", "mock").split(",").map((s) => s.trim()).filter(Boolean),
+    operatorBridgeToken: env("OPERATOR_BRIDGE_TOKEN", ""),
     webhookSigningSecret: env("WEBHOOK_SIGNING_SECRET", "dev-secret-change-me"),
     tenantKeys: JSON.parse(env("TENANT_KEYS", '{"erp-staging":"dev-tenant-key"}')),
     hitlMode: env("HITL_MODE", "auto") as Config["hitlMode"],
