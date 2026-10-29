@@ -1,19 +1,28 @@
 /**
- * TNREGINET Encumbrance Certificate — feasibility POC
- * ==================================================
- * Drives the TNREGINET "Search & View EC" flow with Playwright, with a
- * HUMAN-IN-THE-LOOP pause for the CAPTCHA (and OTP, if login is used).
+ * TNREGINET Encumbrance Certificate — feasibility POC  (BATCH VERSION)
+ * ====================================================================
+ * Runs MANY samples one after another. For each sample the script opens the
+ * portal, fills every field, then waits for YOU to type the CAPTCHA; after that
+ * it clicks through the OK popups and downloads the PDF by itself.
  * It does NOT attempt to defeat the CAPTCHA. Run from an India connection.
  *
  * USAGE
- *   npm install
- *   cp config.sample.json config.json   # then edit with YOUR OWN sample property
  *   npm run ec:search
  *
- * OPTIONAL config.json -> "run":
- *   "downloadDir": "C:/Users/you/Documents/TNECT"   (default: Documents/TNECT)
- *   "pdfName": ""                                   (empty = automatic name from the search details)
- *   "openAfterDownload": false                      (default: true = open the PDF)
+ * config.json
+ *   "search":  default values (zone, district, sro, village, dates ...)
+ *   "samples": [ { "village": "...", "surveyNumber": "...", "subdivisionNumber": "..." }, ... ]
+ *              each sample may override ANY "search" field (zone, district, sro, dates, label)
+ *              (no samples -> a single run using "search", exactly like before)
+ *   "run": {
+ *     "downloadDir":      "C:/Users/you/Documents/TNECT"  PDFs go here
+ *     "pdfName":          ""      empty = automatic name from the sample
+ *     "captchaInput":     "browser" | "terminal"   (browser = type it in the portal's own box + Enter)
+ *     "captchaRetries":   2       re-try a sample if the portal says the CAPTCHA was wrong
+ *     "delayBetweenMs":   3000    pause between samples (be gentle with the portal)
+ *     "samplesFile":      ""      optional CSV (see samples.sample.csv)
+ *     "openAfterDownload": false  (default true = open each PDF; set false for big batches)
+ *   }
  *
  * PDF file name: <name>_<date>_<time>.pdf
  *   e.g. EC_Thiruvettriyur_123-4_2026-10-28_14-35-20.pdf
@@ -23,6 +32,7 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { exec } from "node:child_process";
 import readline from "node:readline/promises";
@@ -32,6 +42,7 @@ import { stdin as input, stdout as output } from "node:process";
 // helpers
 // ---------------------------------------------------------------------------
 
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 const cfg = JSON.parse(fs.readFileSync(new URL("./config.json", import.meta.url)));
 const ARTIFACTS = path.resolve(cfg.run.artifactsDir ?? "./artifacts");
 fs.mkdirSync(ARTIFACTS, { recursive: true });
@@ -41,7 +52,9 @@ function expandHome(p) { return p.startsWith("~") ? path.join(os.homedir(), p.sl
 const DOWNLOAD_DIR = path.resolve(expandHome(cfg.run.downloadDir ?? path.join(os.homedir(), "Documents", "TNECT")));
 fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 
-let PDF_NAME = "EC"; // set at the start of the run (see resolvePdfName)
+let PDF_NAME = "EC";     // set for every sample (see resolvePdfName)
+let lastSaved = null;    // path of the PDF saved for the current sample
+let lastDialogMsg = "";  // last native alert()/confirm() text shown by the portal
 
 // local time stamp, e.g. 2026-10-28_14-35-20
 function stamp() {
@@ -58,16 +71,35 @@ function nextPdfPath() {
   for (let i = 1; fs.existsSync(file); i++) file = path.join(DOWNLOAD_DIR, `${base}_${i}.pdf`);
   return file;
 }
-// Automatic name from the search details: EC_<village>_<survey>-<subdivision>
-// (or the fixed name from config run.pdfName, if you set one)
+// Automatic name from the sample: EC_<village>_<survey>-<subdivision>
+// (or the sample's "label", or the fixed run.pdfName, if you set one)
 function resolvePdfName() {
-  const custom = cleanName(cfg.run.pdfName);
-  if (custom) return custom;
   const s = cfg.search ?? {};
+  const custom = cleanName(s.label || cfg.run.pdfName);
+  if (custom) return custom;
   const sub = s.subdivisionNumber ? `-${s.subdivisionNumber}` : "";
   const name = cleanName(`EC_${s.village ?? ""}_${s.surveyNumber ?? ""}${sub}`.replace(/[\/\\]/g, "-"))
     .replace(/_+/g, "_").replace(/^_|_$/g, "");
   return name || "EC";
+}
+
+// ---- samples: from config.json "samples" and/or a CSV file ----
+function parseCsv(text) {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+  if (!lines.length) return [];
+  const head = lines.shift().split(",").map((h) => h.trim());
+  return lines.map((l) => {
+    const cells = l.split(",").map((c) => c.trim());
+    return Object.fromEntries(head.map((h, i) => [h, cells[i] ?? ""]).filter(([, v]) => v !== ""));
+  });
+}
+function loadSamples() {
+  let list = Array.isArray(cfg.samples) ? [...cfg.samples] : [];
+  if (cfg.run.samplesFile) {
+    const file = path.resolve(HERE, cfg.run.samplesFile);
+    list = list.concat(parseCsv(fs.readFileSync(file, "utf8")));
+  }
+  return list.filter((s) => s && typeof s === "object" && !Object.keys(s).every((k) => k.startsWith("_")));
 }
 
 const ts = () => new Date().toISOString().replace(/[:.]/g, "-");
@@ -86,6 +118,7 @@ function openFile(file) {
 async function saveDownload(download) {
   const dest = nextPdfPath();
   await download.saveAs(dest);
+  lastSaved = dest;
   log(`  DOWNLOAD saved -> ${dest}`);
   const head = fs.readFileSync(dest).subarray(0, 5).toString();
   if (head !== "%PDF-") log(`  note: file starts with "${head}", not a PDF — check what it really is`);
@@ -181,7 +214,7 @@ async function selectPortalOption(page, selector, label, fieldName) {
 }
 
 function parseDmy(dmy) {
-  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dmy);
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(dmy).trim());
   if (!match) throw new Error(`Invalid date "${dmy}"; expected DD/MM/YYYY`);
   const [, dayText, monthText, yearText] = match;
   const day = Number(dayText);
@@ -314,8 +347,8 @@ async function fillSearchForm(page) {
   await waitForOptions(page, "#cmb_Village");
   await selectPortalOption(page, "#cmb_Village", s.village, "village");
 
-  await page.locator("#txt_SurveyNo").fill(s.surveyNumber);
-  await page.locator("#txt_SubDivisionNo").fill(s.subdivisionNumber);
+  await page.locator("#txt_SurveyNo").fill(String(s.surveyNumber));
+  await page.locator("#txt_SubDivisionNo").fill(String(s.subdivisionNumber));
   await page.locator("#btn_AddSurvey").click();
   await page.waitForTimeout(500);
 
@@ -326,16 +359,20 @@ async function fillSearchForm(page) {
 }
 
 /**
- * HUMAN-IN-THE-LOOP. We show the operator the CAPTCHA and take the answer.
+ * HUMAN-IN-THE-LOOP. The operator reads the CAPTCHA and types it.
  * We do NOT call any solver service.
+ *   run.captchaInput = "browser"  -> type it straight into the portal's CAPTCHA box, press Enter (fastest)
+ *   run.captchaInput = "terminal" -> type it in the terminal (default)
+ *   operatorConsole configured    -> answered through the operator console page
  */
 async function humanCaptcha(page, where = "search") {
-  log(`STEP captcha (${where}) — HUMAN INPUT REQUIRED`);
+  const label = `${cfg.search?.village ?? ""} ${cfg.search?.surveyNumber ?? ""}${cfg.search?.subdivisionNumber ? "/" + cfg.search.subdivisionNumber : ""}`.trim();
+  log(`STEP captcha (${where}) — HUMAN INPUT REQUIRED  [${label}]`);
   const img = page.locator("#captcha");
   await img.waitFor({ state: "visible", timeout: cfg.run.stepTimeoutMs });
   const file = path.join(ARTIFACTS, `${ts()}__captcha-${where}.png`);
   await img.screenshot({ path: file }).catch(() => {});
-  log(`  captcha image saved -> ${file}  (open it, read the code)`);
+  log(`  captcha image saved -> ${file}`);
   let code;
   const bridge = cfg.operatorConsole ?? {};
   const baseUrl = typeof bridge.baseUrl === "string" ? bridge.baseUrl.trim().replace(/\/+$/, "") : "";
@@ -372,6 +409,7 @@ async function humanCaptcha(page, where = "search") {
     let consolePage = context.pages().find((candidate) => candidate.url().startsWith(consoleUrl));
     if (!consolePage) consolePage = await context.newPage();
     await consolePage.goto(consoleUrl, { waitUntil: "domcontentloaded", timeout: cfg.run.stepTimeoutMs });
+    await consolePage.bringToFront().catch(() => {}); // show the console tab so you can type the CAPTCHA
     log(`  CAPTCHA task ${taskId} opened in the operator console: ${consoleUrl}`);
 
     const taskUrl = `${baseUrl}/ops/bridge/tasks/${encodeURIComponent(taskId)}`;
@@ -398,15 +436,37 @@ async function humanCaptcha(page, where = "search") {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     if (!code) throw new Error("Timed out waiting for the operator to answer the CAPTCHA.");
+  } else if (cfg.run.captchaInput === "browser") {
+    // Fastest: type the code directly in the portal's own CAPTCHA box and press Enter.
+    const field = page.locator("#txt_Captcha");
+    await page.bringToFront().catch(() => {});
+    await field.scrollIntoViewIfNeeded().catch(() => {});
+    await field.fill("");
+    await field.focus();
+    log("  >> Type the CAPTCHA in the browser box and press ENTER (the script does the rest)");
+    await page.evaluate(() => {
+      window.__captchaDone = false;
+      const el = document.querySelector("#txt_Captcha");
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); window.__captchaDone = true; }
+      }, true);
+    });
+    await page.waitForFunction(() => window.__captchaDone === true, null, { timeout: 5 * 60_000 });
+    code = (await field.inputValue()).trim();
+    if (!code) throw new Error("CAPTCHA box was empty when Enter was pressed.");
   } else {
     code = await ask("  >> Enter the CAPTCHA text exactly as shown: ");
   }
   await page.locator("#txt_Captcha").fill(code);
 }
 
+// portal's wrong-CAPTCHA message (text or alert box)
+const WRONG_CAPTCHA = /(invalid|incorrect|wrong|mismatch|not\s*match)[^.]{0,40}captcha|captcha[^.]{0,40}(invalid|incorrect|wrong|mismatch|not\s*match)/i;
+
 let context;
 async function submitAndCollect(page) {
   log("STEP submit search");
+  lastDialogMsg = "";
   await humanCaptcha(page, "search");
   await page.locator("#btn_SearchDoc").click();
 
@@ -433,6 +493,7 @@ async function submitAndCollect(page) {
   // so we ONLY click "Click here" once the Acknowledgement text is on screen.
   const ackText = page.getByText(/PDF has been generated|to download PDF/i).first();
   const noRecords = page.getByText(/no records? found|no encumbrance|No Documents registered/i).first();
+  const wrongCaptchaText = page.getByText(WRONG_CAPTCHA).first();
   const okSel = [
     '.swal2-confirm', '.swal-button--confirm', '.bootbox .btn-primary',
     'button:text-matches("^\\s*ok\\s*$", "i")',
@@ -457,6 +518,10 @@ async function submitAndCollect(page) {
       log("  RESULT: portal reports no records for this property/period (visible on screen).");
       log("  -> a HUMAN must confirm this is a genuine 'clean' EC and not a wrong village/period/survey.");
       return { outcome: "NO_RECORDS" };
+    }
+    if (WRONG_CAPTCHA.test(lastDialogMsg) || await wrongCaptchaText.isVisible().catch(() => false)) {
+      log("  portal says the CAPTCHA was wrong");
+      return { outcome: "CAPTCHA_WRONG" };
     }
     const ok = page.locator(okSel).first();
     if (await ok.isVisible().catch(() => false)) {
@@ -486,6 +551,7 @@ async function submitAndCollect(page) {
     if (body && body.subarray(0, 5).toString() === "%PDF-") {
       const dest = nextPdfPath();
       fs.writeFileSync(dest, body);
+      lastSaved = dest;
       log(`  DOWNLOAD saved -> ${dest}`);
       if (cfg.run.openAfterDownload !== false) openFile(dest);
       return { outcome: "PDF_DOWNLOADED", folder: DOWNLOAD_DIR };
@@ -514,11 +580,44 @@ const STEPS = [
   ["submitAndCollect", submitAndCollect],
 ];
 
+// Run all steps for ONE sample. Never throws.
+async function runSample(page) {
+  const steps = [];
+  let outcome = null;
+  let error = null;
+  for (const [name, fn] of STEPS) {
+    try {
+      const r = await fn(page);
+      steps.push({ step: name, ok: true });
+      if (r?.outcome) outcome = r.outcome;
+    } catch (err) {
+      await dumpOnFailure(page, name, err);
+      error = `${name}: ${String(err?.message ?? err)}`;
+      outcome = "FAILED";
+      steps.push({ step: name, ok: false, error });
+      break; // skip the rest of THIS sample, then continue with the next one
+    }
+  }
+  return { outcome: outcome ?? "UNKNOWN", error, steps };
+}
+
+// close PDF tabs / popups left over from the previous sample (keep the main page + operator console)
+async function closeExtraPages(mainPage) {
+  for (const p of context.pages()) {
+    if (p !== mainPage && !p.url().includes("/public/console.html")) await p.close().catch(() => {});
+  }
+}
+
 (async () => {
-  log("ec-search VERSION 5 (auto OK + 'Click here' download + auto PDF name in TNECT folder)");
-  PDF_NAME = resolvePdfName();
-  log(`TNREGINET EC POC — artifacts dir: ${ARTIFACTS}`);
-  log(`PDF will be saved as: ${PDF_NAME}_<date>_<time>.pdf  ->  ${DOWNLOAD_DIR}`);
+  log("ec-search VERSION 6 (BATCH: many samples, auto-fill, you only enter the CAPTCHAs)");
+  const baseSearch = { ...cfg.search };
+  const samples = loadSamples();
+  const jobs = samples.length ? samples : [{}];
+  const retries = cfg.run.captchaRetries ?? 2;
+  log(`TNREGINET EC POC — ${jobs.length} sample(s) — artifacts dir: ${ARTIFACTS}`);
+  log(`PDFs will be saved to: ${DOWNLOAD_DIR}`);
+  log(`CAPTCHA input mode: ${cfg.operatorConsole?.baseUrl ? "operator console" : (cfg.run.captchaInput === "browser" ? "type in the browser box + Enter" : "terminal")}`);
+
   const browser = await chromium.launch({
     headless: cfg.run.headless ?? false,
     slowMo: cfg.run.slowMoMs ?? 100,
@@ -535,30 +634,60 @@ const STEPS = [
     saveDownload(download).catch((e) => log(`  download save failed: ${e.message}`));
   };
   // Native browser alert()/confirm() boxes (the "OK" screen may be one): accept automatically.
-  const onDialog = (d) => { log(`  portal dialog: "${d.message()}" -> OK`); d.accept().catch(() => {}); };
+  const onDialog = (d) => { lastDialogMsg = d.message(); log(`  portal dialog: "${lastDialogMsg}" -> OK`); d.accept().catch(() => {}); };
   page.on("download", onDownload);
   page.on("dialog", onDialog);
   context.on("page", (p) => { p.on("download", onDownload); p.on("dialog", onDialog); }); // popups/new tabs
   page.setDefaultTimeout(cfg.run.stepTimeoutMs ?? 45000);
 
-  const summary = [];
+  const results = [];
   try {
-    for (const [name, fn] of STEPS) {
-      try {
-        const r = await fn(page);
-        summary.push({ step: name, ok: true, ...(r ? { result: r } : {}) });
-      } catch (err) {
-        await dumpOnFailure(page, name, err);
-        summary.push({ step: name, ok: false, error: String(err?.message ?? err) });
-        break; // stop at first failure — this is a diagnostic POC
+    for (let i = 0; i < jobs.length; i++) {
+      let attempt = 0;
+      let res;
+      while (true) {
+        attempt++;
+        cfg.search = { ...baseSearch, ...jobs[i] };
+        PDF_NAME = resolvePdfName();
+        lastSaved = null;
+        const s = cfg.search;
+        log(`\n===== SAMPLE ${i + 1}/${jobs.length}: ${s.village} survey ${s.surveyNumber}/${s.subdivisionNumber}` +
+            `  (attempt ${attempt}) =====`);
+        res = await runSample(page);
+        if (res.outcome === "CAPTCHA_WRONG" && attempt <= retries) {
+          log("  -> wrong CAPTCHA: trying this sample again with a fresh CAPTCHA");
+          await closeExtraPages(page);
+          continue;
+        }
+        break;
       }
+      results.push({
+        n: i + 1,
+        village: cfg.search.village,
+        survey: `${cfg.search.surveyNumber}/${cfg.search.subdivisionNumber}`,
+        outcome: res.outcome,
+        file: lastSaved ?? "",
+        attempts: attempt,
+        error: res.error ?? "",
+      });
+      await closeExtraPages(page);
+      if (i < jobs.length - 1) await page.waitForTimeout(cfg.run.delayBetweenMs ?? 3000);
     }
   } finally {
-    const file = path.join(ARTIFACTS, `${ts()}__run-summary.json`);
-    fs.writeFileSync(file, JSON.stringify(summary, null, 2));
-    log(`run summary -> ${file}`);
-    log("\n==== SUMMARY ====");
-    for (const s of summary) log(`  ${s.ok ? "OK  " : "FAIL"}  ${s.step}${s.error ? "  :: " + s.error : ""}${s.result?.outcome ? "  => " + s.result.outcome : ""}`);
+    const base = path.join(ARTIFACTS, `${ts()}__batch-summary`);
+    fs.writeFileSync(`${base}.json`, JSON.stringify(results, null, 2));
+    const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    fs.writeFileSync(`${base}.csv`, ["n,village,survey,outcome,attempts,file,error"]
+      .concat(results.map((r) => [r.n, r.village, r.survey, r.outcome, r.attempts, r.file, r.error].map(q).join(","))).join("\n"));
+    log(`batch summary -> ${base}.csv`);
+
+    log("\n==== BATCH SUMMARY ====");
+    for (const r of results) {
+      log(`  #${String(r.n).padStart(2)}  ${String(r.outcome).padEnd(20)} ${r.village} ${r.survey}${r.file ? "  -> " + path.basename(r.file) : ""}${r.error ? "  :: " + r.error : ""}`);
+    }
+    const count = (o) => results.filter((r) => r.outcome === o).length;
+    log(`  downloaded: ${count("PDF_DOWNLOADED")}   no records: ${count("NO_RECORDS")}   failed/other: ${results.length - count("PDF_DOWNLOADED") - count("NO_RECORDS")}   of ${results.length}`);
+    log(`  PDFs are in: ${DOWNLOAD_DIR}`);
     if (!cfg.run.headless) {
       await ask("\nPress Enter to close the browser...");
     }
