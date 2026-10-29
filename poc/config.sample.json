@@ -16,15 +16,27 @@
       "DOCUMENT_WISE",
       "PLOT_FLAT_WISE"
     ],
-    "zone": "Chennai",
-    "district": "Chennai North",
-    "sro": "Thiruvottiyur",
-    "village": "Thiruvettriyur",
-    "surveyNumber": "123",
-    "subdivisionNumber": "4",
-    "ecStartDate": "01/01/2015",
-    "ecEndDate": "31/12/2024"
+     "zone": "Salem",
+    "district": "Salem West",
+    "sro": "Suramangalam",
+    "village": "Thalavaipatti",
+    "surveyNumber": "87",
+    "subdivisionNumber": "1",
+    "ecStartDate": "01/01/1987",
+    "ecEndDate": "08/07/2018"
   },
+  "samples": [
+  { "surveyNumber": "87", "subdivisionNumber": "1" },
+  { "surveyNumber": "87", "subdivisionNumber": "2" },
+  { "surveyNumber": "87", "subdivisionNumber": "3" },
+  { "surveyNumber": "88", "subdivisionNumber": "1" },
+  { "surveyNumber": "89", "subdivisionNumber": "1" },
+  { "surveyNumber": "90", "subdivisionNumber": "1" },
+  { "surveyNumber": "91", "subdivisionNumber": "1" },
+  { "surveyNumber": "92", "subdivisionNumber": "1" },
+  { "surveyNumber": "93", "subdivisionNumber": "1" },
+  { "surveyNumber": "94", "subdivisionNumber": "1" }
+],
   "run": {
     "headless": false,
     "slowMoMs": 150,
@@ -33,7 +45,9 @@
     "stopBeforeLogin": true,
     "downloadPdf": true,
     "downloadSelector": "",
-    "openAfterDownload": true,
+    "openAfterDownload": false,
+    "captchaRetries": 2,
+    "delayBetweenMs": 3000,
     "downloadDir": "C:/Users/Indhureka.A/Documents/EC_DOCUMENTS",
     "pdfName": ""
   },
